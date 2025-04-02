@@ -1,0 +1,2 @@
+# lazy_simbolic_addon
+前川先生のlazy simbolic パッケージのTeX出力を可能にするアドオンの作成
