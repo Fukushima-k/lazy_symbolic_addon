@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Untitled</title>
+<title>lazy_symbolic addon</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -108,7 +108,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Untitled</h1>
+<h1 class="title">lazy_symbolic addon</h1>
 </div>
 
 
@@ -125,9 +125,71 @@ window.Quarto = {
 </header>
 
 
-<section id="quarto" class="level2">
-<h2 class="anchored" data-anchor-id="quarto">Quarto</h2>
+<section id="準備" class="level2">
+<h2 class="anchored" data-anchor-id="準備">準備</h2>
+<section id="パッケージの導入" class="level3">
+<h3 class="anchored" data-anchor-id="パッケージの導入">パッケージの導入</h3>
 <div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lazy.symbolic)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'lazy.symbolic' was built under R version 4.4.3</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: MASS</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: lazy.tools</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'lazy.tools' was built under R version 4.4.3</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: lazy.mat</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'lazy.symbolic'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:lazy.mat':
+
+    tr</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'dplyr'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:lazy.tools':
+
+    recode</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:MASS':
+
+    select</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    filter, lag</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union</code></pre>
+</div>
+</div>
+</section>
+<section id="行列の定義" class="level3">
+<h3 class="anchored" data-anchor-id="行列の定義">行列の定義</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># set output line width</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width=</span><span class="dv">500</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 数値演算子の拡張:</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="fu">modify_math_operators</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 
@@ -139,48 +201,175 @@ window.Quarto = {
       rm( `+`, `-`, `*`, `%*%`, `/` , t )  .  
 **</code></pre>
 </div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"main_functions.R"</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">pcre.recursion_limit =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># set output line width</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width=</span><span class="dv">500</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 行列とベクトルの定義</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ベクトル</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>v <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">1</span>,<span class="at">root=</span><span class="st">"v"</span>,<span class="at">vec=</span><span class="dv">1</span>)   <span class="co"># 3 x 1 の縦ベクトル</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>u <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">1</span>,<span class="at">root=</span><span class="st">"u"</span>,<span class="at">vec=</span><span class="dv">1</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>u4 <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">4</span>,<span class="dv">1</span>,<span class="at">root=</span><span class="st">"u"</span>,<span class="at">vec=</span><span class="dv">1</span>)  <span class="co"># 4 x 1 の縦ベクトル</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>v4 <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">4</span>,<span class="dv">1</span>,<span class="at">root=</span><span class="st">"v"</span>,<span class="at">vec=</span><span class="dv">1</span>)</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 定数</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>one3 <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="st">"1"</span>,<span class="dv">3</span>,<span class="dv">1</span>) <span class="co"># col vector of length 3 consisting of 1s.</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>one4 <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="st">"1"</span>,<span class="dv">4</span>,<span class="dv">1</span>) <span class="co"># col vector of length 4 consisting of 1s.</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>zero3 <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="st">"0"</span>,<span class="dv">3</span>,<span class="dv">1</span>) <span class="co"># col vector of length 3 consisting of 0s.</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>zero4 <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="st">"0"</span>,<span class="dv">4</span>,<span class="dv">1</span>) <span class="co"># col vector of length 4 consisting of 0s.</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 行列</span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">4</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"a"</span>)    <span class="co"># 4 x 3 の行列</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>B <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">4</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"b"</span>)</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">2</span>,<span class="at">root=</span><span class="st">"x"</span>)    <span class="co"># 3 x 2 の行列</span></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">2</span>,<span class="at">root=</span><span class="st">"y"</span>)</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>Z <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">2</span>,<span class="at">root=</span><span class="st">"z"</span>)</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>Y2 <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">2</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"y"</span>)    <span class="co"># 2 x 3 の行列</span></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>Z2 <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"y"</span>)    <span class="co"># 3 x 3 の行列</span></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a><span class="co"># 直接に要素を定義して 2 x 3 の行列を作る</span></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">matrix</span>( <span class="fu">paste</span>(<span class="st">"x"</span>,<span class="fu">outer</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>,<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, paste, <span class="at">sep=</span><span class="st">""</span>), <span class="at">sep=</span><span class="st">""</span>), <span class="dv">2</span>,<span class="dv">3</span> )</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a><span class="co"># 対角行列</span></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>D3 <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"d"</span>, <span class="at">shape=</span><span class="st">"diag"</span>)    <span class="co"># 3 x 3 の対角行列</span></span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>D4 <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">4</span>,<span class="dv">4</span>,<span class="at">root=</span><span class="st">"d"</span>, <span class="at">shape=</span><span class="st">"diag"</span>)    <span class="co"># 4 x 4 の対角行列</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a><span class="co"># 対称行列</span></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>S <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"s"</span>, <span class="at">shape=</span><span class="st">"sym"</span>)    <span class="co"># 3 x 3 の対称行列</span></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>Su <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"s"</span>, <span class="at">shape=</span><span class="st">"symU"</span>)    <span class="co"># 3 x 3 の対称行列</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a><span class="co"># 三角行列</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"s"</span>, <span class="at">shape=</span><span class="st">"lowert"</span>)    <span class="co"># 3 x 3 の下三角行列</span></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>U <span class="ot">&lt;-</span> <span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"s"</span>, <span class="at">shape=</span><span class="st">"uppert"</span>, <span class="at">nodiag=</span><span class="dv">1</span>)    <span class="co"># 3 x 3 の上三角行列</span></span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a><span class="co"># 単位行列</span></span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>I3 <span class="ot">&lt;-</span> <span class="fu">diag</span>(<span class="dv">3</span>)</span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>I4 <span class="ot">&lt;-</span> <span class="fu">diag</span>(<span class="dv">4</span>)</span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a><span class="co"># 零行列</span></span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>Zero3 <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="st">"0"</span>,<span class="dv">3</span>,<span class="dv">3</span>)</span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a><span class="co"># set output line width</span></span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width=</span><span class="dv">500</span>)</span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a><span class="co"># 中心化行列:  J = I_n - (1/n) * one_n %*% t(one_n)</span></span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>J3<span class="ot">=</span>I3 <span class="sc">-</span> <span class="st">"(1/3)"</span> <span class="sc">*</span> one3 <span class="sc">%*%</span> <span class="fu">t</span>(one3) </span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>L1<span class="ot">=</span><span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"L1_"</span>,<span class="at">shape=</span><span class="st">"lowert"</span>)</span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>L2<span class="ot">=</span><span class="fu">demomat</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="at">root=</span><span class="st">"L2_"</span>,<span class="at">shape=</span><span class="st">"lowert"</span>)</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a>A2<span class="ot">=</span><span class="fu">demomat</span>(<span class="dv">2</span>,<span class="dv">2</span>,<span class="at">root=</span><span class="st">"a"</span>)</span>
+<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>detA2<span class="ot">=</span><span class="st">"a11*a22-a21*a12"</span></span>
+<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a>invA2d<span class="ot">=</span>(<span class="fu">paste</span>(<span class="st">"1/("</span>,detA2,<span class="st">")"</span>,<span class="at">sep=</span><span class="st">""</span>))<span class="sc">*</span><span class="fu">matrix</span>(<span class="fu">c</span>(<span class="st">"a22"</span>,<span class="st">"-a21"</span>,<span class="st">"-a12"</span>,<span class="st">"a11"</span>),<span class="dv">2</span>,<span class="dv">2</span>)</span>
+<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a><span class="co"># 完全記号行列</span></span>
+<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>bigA<span class="ot">=</span><span class="fu">demomat</span>(<span class="dv">2</span>,<span class="dv">2</span>,<span class="at">root=</span><span class="st">"A"</span>, <span class="at">fullsymb=</span><span class="dv">1</span>)  </span>
+<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a>bigB<span class="ot">=</span><span class="fu">demomat</span>(<span class="dv">2</span>,<span class="dv">2</span>,<span class="at">root=</span><span class="st">"B"</span>, <span class="at">fullsymb=</span><span class="dv">1</span>)  </span>
+<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a>invbigA<span class="ot">=</span><span class="fu">matSwp</span>(bigA)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="総和記号の変換" class="level1">
-<h1>総和記号の変換</h1>
+<section id="自作関数の読み込み" class="level3">
+<h3 class="anchored" data-anchor-id="自作関数の読み込み">自作関数の読み込み</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>expr <span class="ot">&lt;-</span> <span class="st">"s(v[s1]*A[s1,j],{s1})"</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>expr <span class="ot">&lt;-</span> <span class="st">"s(v[s1]*A[s1,j],{s1,1,ncol(A)})"</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(expr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"main_functions.R"</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">pcre.recursion_limit =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<!-- # 総和記号の変換 -->
+<!-- ```{r} -->
+<!-- library(stringr) -->
+<!-- expr <- "s(v[s1]*A[s1,j],{s1})" -->
+<!-- expr <- "s(v[s1]*A[s1,j],{s1,1,ncol(A)})" -->
+<!-- print(expr) -->
+<!-- expr <- "A%*%X %*% Y2" %>% mat2sum(simple = 0) -->
+<!-- ``` -->
+</section>
+</section>
+<section id="使い方の説明" class="level1">
+<h1>使い方の説明</h1>
+<ul>
+<li>関数一覧
+<ul>
+<li>to_latex()
+<ul>
+<li>要素ごとにLatex記法に変換する関数</li>
+</ul></li>
+<li>to_tex_matrix()
+<ul>
+<li>行列ごとLatex記法に変換する関数</li>
+</ul></li>
+</ul></li>
+<li>使い方
+<ul>
+<li>変換したい当該オブジェクトを引数に上記関数を使用すると、Latex記法の文字列が返ってくる。</li>
+<li>QuartoのRチャンクにおいて、チャンクオプションをresults:“asis”にすると、Rの返した結果をmarkdown上に直接記述されたものと解釈してコンパイルできる。
+<ul>
+<li>注：このオプションをつけないと、あくまでRチャンクの結果としての文字列を返すのみになり、これをさらにコンパイルすることが出来なくなる。</li>
+</ul></li>
+</ul></li>
+</ul>
+<section id="使用例" class="level2">
+<h2 class="anchored" data-anchor-id="使用例">使用例</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># オブジェクト</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(S)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] "s(v[s1]*A[s1,j],{s1,1,ncol(A)})"</code></pre>
+<pre><code>S = 
+   c1  c2  c3 
+r1 s11 s21 s31
+r2 s21 s22 s32
+r3 s31 s32 s33</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>expr <span class="ot">&lt;-</span> <span class="st">"A%*%X %*% Y2"</span> <span class="sc">%&gt;%</span> <span class="fu">mat2sum</span>(<span class="at">simple =</span> <span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># チャンクオプションとして、#| results: "asis"を使用</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">to_tex_matrix</span>(S) <span class="sc">%&gt;%</span> <span class="fu">cat</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span class="math display">\[\begin{bmatrix}
+s_{11} &amp; s_{21} &amp; s_{31} \\
+s_{21} &amp; s_{22} &amp; s_{32} \\
+s_{31} &amp; s_{32} &amp; s_{33}
+\end{bmatrix}\]</span>
+</section>
 </section>
 <section id="テストセクション" class="level1">
 <h1>テストセクション</h1>
+<section id="通常の行列記法" class="level2">
+<h2 class="anchored" data-anchor-id="通常の行列記法">通常の行列記法</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>text_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">"S"</span>, </span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                  <span class="st">'"c" * v'</span>, <span class="st">"u %@% t(v)"</span>, </span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                  <span class="st">'I3 - "(1/3)" * one3 %*% t(one3)'</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"(1/4) * t(one4) %*% A"</span>,</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"t(v) %*% S %*% v |&gt; Expand()"</span>,</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"L1 %*% L2"</span>,</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>                  <span class="st">'matrix(c("cos(theta)", "-sin(theta)", "sin(theta)", "cos(theta)"), 2,2, byrow=1)'</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>matrix_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">'A%*%ginv(t(A)%*%A)%*%t(A)'</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>mat2sum_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">'mat2sum( "A + B", simple=0 )'</span>,</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>                     <span class="st">'mat2sum("t(v) %*% S %*% v", root="k",simple=0)'</span>,</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>                     <span class="st">'mat2sum("diag(D1)%*%A%*%diag(D2)")'</span>,</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>                     <span class="st">'mat2sum("t(f)%*%A%*%t(B)%*%C%*%Diag(D)%*%t(E)")'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>text_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">"S"</span>, </span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"A %*% t(B)"</span>,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>                  <span class="st">'"c" * v'</span>, <span class="st">"u %@% t(v)"</span>, </span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>                  <span class="st">'I3 - "(1/3)" * one3 %*% t(one3)'</span>,</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"(1/4) * t(one4) %*% A"</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"t(v) %*% S %*% v |&gt; Expand()"</span>,</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"L1 %*% L2"</span>,</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>                  <span class="st">'matrix(c("cos(theta)", "-sin(theta)", "sin(theta)", "cos(theta)"), 2,2, byrow=1)'</span>,</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"invA2d"</span>,</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"A2%*%invA2d"</span>,</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"t(bigA)"</span>,</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"bigA%*%bigB"</span>,</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"invbigA"</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>                  </span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>matrix_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">'A%*%ginv(t(A)%*%A)%*%t(A)'</span>)</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>mat2sum_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">'mat2sum( "A + B", simple=0 )'</span>,</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>                     <span class="st">'mat2sum("t(v) %*% S %*% v", root="k",simple=0)'</span>,</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>                     <span class="st">'mat2sum("diag(D1)%*%A%*%diag(D2)")'</span>,</span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a>                     <span class="st">'mat2sum("t(f)%*%A%*%t(B)%*%C%*%Diag(D)%*%t(E)")'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
 <section id="テスト-行列" class="level2">
 <h2 class="anchored" data-anchor-id="テスト-行列">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(S)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(S)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>S = 
    c1  c2  c3 
@@ -198,7 +387,27 @@ s_{31} &amp; s_{32} &amp; s_{33}
 <section id="テスト-行列-1" class="level2">
 <h2 class="anchored" data-anchor-id="テスト-行列-1">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="st">"c"</span> <span class="sc">*</span> v)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(A <span class="sc">%*%</span> <span class="fu">t</span>(B))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>A %*% t(B) = 
+   r1                      r2                      r3                      r4                     
+r1 a11*b11+a12*b12+a13*b13 a11*b21+a12*b22+a13*b23 a11*b31+a12*b32+a13*b33 a11*b41+a12*b42+a13*b43
+r2 a21*b11+a22*b12+a23*b13 a21*b21+a22*b22+a23*b23 a21*b31+a22*b32+a23*b33 a21*b41+a22*b42+a23*b43
+r3 a31*b11+a32*b12+a33*b13 a31*b21+a32*b22+a33*b23 a31*b31+a32*b32+a33*b33 a31*b41+a32*b42+a33*b43
+r4 a41*b11+a42*b12+a43*b13 a41*b21+a42*b22+a43*b23 a41*b31+a42*b32+a43*b33 a41*b41+a42*b42+a43*b43</code></pre>
+</div>
+</div>
+<span class="math display">\[\begin{bmatrix}
+a_{11} \cdot b_{11} + a_{12} \cdot b_{12} + a_{13} \cdot b_{13} &amp; a_{11} \cdot b_{21} + a_{12} \cdot b_{22} + a_{13} \cdot b_{23} &amp; a_{11} \cdot b_{31} + a_{12} \cdot b_{32} + a_{13} \cdot b_{33} &amp; a_{11} \cdot b_{41} + a_{12} \cdot b_{42} + a_{13} \cdot b_{43} \\
+a_{21} \cdot b_{11} + a_{22} \cdot b_{12} + a_{23} \cdot b_{13} &amp; a_{21} \cdot b_{21} + a_{22} \cdot b_{22} + a_{23} \cdot b_{23} &amp; a_{21} \cdot b_{31} + a_{22} \cdot b_{32} + a_{23} \cdot b_{33} &amp; a_{21} \cdot b_{41} + a_{22} \cdot b_{42} + a_{23} \cdot b_{43} \\
+a_{31} \cdot b_{11} + a_{32} \cdot b_{12} + a_{33} \cdot b_{13} &amp; a_{31} \cdot b_{21} + a_{32} \cdot b_{22} + a_{33} \cdot b_{23} &amp; a_{31} \cdot b_{31} + a_{32} \cdot b_{32} + a_{33} \cdot b_{33} &amp; a_{31} \cdot b_{41} + a_{32} \cdot b_{42} + a_{33} \cdot b_{43} \\
+a_{41} \cdot b_{11} + a_{42} \cdot b_{12} + a_{43} \cdot b_{13} &amp; a_{41} \cdot b_{21} + a_{42} \cdot b_{22} + a_{43} \cdot b_{23} &amp; a_{41} \cdot b_{31} + a_{42} \cdot b_{32} + a_{43} \cdot b_{33} &amp; a_{41} \cdot b_{41} + a_{42} \cdot b_{42} + a_{43} \cdot b_{43}
+\end{bmatrix}\]</span>
+</section>
+<section id="テスト-行列-2" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-2">テスト　行列</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="st">"c"</span> <span class="sc">*</span> v)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>"c" * v = 
    c1  
@@ -213,10 +422,10 @@ c \cdot v_{2} \\
 c \cdot v_{3}
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列-2" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列-2">テスト　行列</h2>
+<section id="テスト-行列-3" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-3">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(u <span class="sc">%@%</span> <span class="fu">t</span>(v))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(u <span class="sc">%@%</span> <span class="fu">t</span>(v))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>u %@% t(v) = 
      c1-1  c2-2  c3-3 
@@ -237,10 +446,10 @@ u_{2} \cdot v_{1} &amp; u_{2} \cdot v_{2} &amp; u_{2} \cdot v_{3} \\
 u_{3} \cdot v_{1} &amp; u_{3} \cdot v_{2} &amp; u_{3} \cdot v_{3}
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列-3" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列-3">テスト　行列</h2>
+<section id="テスト-行列-4" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-4">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(I3 <span class="sc">-</span> <span class="st">"(1/3)"</span> <span class="sc">*</span> one3 <span class="sc">%*%</span> <span class="fu">t</span>(one3))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(I3 <span class="sc">-</span> <span class="st">"(1/3)"</span> <span class="sc">*</span> one3 <span class="sc">%*%</span> <span class="fu">t</span>(one3))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>I3 - "(1/3)" * one3 %*% t(one3) = 
    c1    c2    c3   
@@ -255,10 +464,10 @@ r3 -1/3  -1/3  1-1/3</code></pre>
 \frac{-1}{3} &amp; \frac{-1}{3} &amp; 1 - \frac{1}{3}
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列-4" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列-4">テスト　行列</h2>
+<section id="テスト-行列-5" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-5">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>((<span class="dv">1</span><span class="sc">/</span><span class="dv">4</span>) <span class="sc">*</span> <span class="fu">t</span>(one4) <span class="sc">%*%</span> A)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>((<span class="dv">1</span><span class="sc">/</span><span class="dv">4</span>) <span class="sc">*</span> <span class="fu">t</span>(one4) <span class="sc">%*%</span> A)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(1/4) * t(one4) %*% A = 
    c1                     c2                     c3                    
@@ -269,10 +478,10 @@ r1 0.25*(a11+a21+a31+a41) 0.25*(a12+a22+a32+a42) 0.25*(a13+a23+a33+a43)</code></
 0.25 \cdot \left(a_{11} + a_{21} + a_{31} + a_{41}\right) &amp; 0.25 \cdot \left(a_{12} + a_{22} + a_{32} + a_{42}\right) &amp; 0.25 \cdot \left(a_{13} + a_{23} + a_{33} + a_{43}\right)
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列-5" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列-5">テスト　行列</h2>
+<section id="テスト-行列-6" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-6">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="fu">t</span>(v) <span class="sc">%*%</span> S <span class="sc">%*%</span> v <span class="sc">|&gt;</span> <span class="fu">Expand</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="fu">t</span>(v) <span class="sc">%*%</span> S <span class="sc">%*%</span> v <span class="sc">|&gt;</span> <span class="fu">Expand</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Expand(t(v) %*% S %*% v) =  v1*s11*v1+v2*s21*v1+v3*s31*v1+v1*s21*v2+v2*s22*v2+v3*s32*v2+v1*s31*v3+v2*s32*v3+v3*s33*v3</code></pre>
 </div>
@@ -281,10 +490,10 @@ r1 0.25*(a11+a21+a31+a41) 0.25*(a12+a22+a32+a42) 0.25*(a13+a23+a33+a43)</code></
 v_{1} \cdot s_{11} \cdot v_{1} + v_{2} \cdot s_{21} \cdot v_{1} + v_{3} \cdot s_{31} \cdot v_{1} + v_{1} \cdot s_{21} \cdot v_{2} + v_{2} \cdot s_{22} \cdot v_{2} + v_{3} \cdot s_{32} \cdot v_{2} + v_{1} \cdot s_{31} \cdot v_{3} + v_{2} \cdot s_{32} \cdot v_{3} + v_{3} \cdot s_{33} \cdot v_{3}
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列-6" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列-6">テスト　行列</h2>
+<section id="テスト-行列-7" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-7">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(L1 <span class="sc">%*%</span> L2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(L1 <span class="sc">%*%</span> L2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>L1 %*% L2 = 
    c1                                  c2                      c3         
@@ -299,10 +508,10 @@ r3 L1_31*L2_11+L1_32*L2_21+L1_33*L2_31 L1_32*L2_22+L1_33*L2_32 L1_33*L2_33</code
 {L1}_{31} \cdot {L2}_{11} + {L1}_{32} \cdot {L2}_{21} + {L1}_{33} \cdot {L2}_{31} &amp; {L1}_{32} \cdot {L2}_{22} + {L1}_{33} \cdot {L2}_{32} &amp; {L1}_{33} \cdot {L2}_{33}
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列-7" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列-7">テスト　行列</h2>
+<section id="テスト-行列-8" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-8">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="fu">matrix</span>(<span class="fu">c</span>(<span class="st">"cos(theta)"</span>, <span class="st">"-sin(theta)"</span>, <span class="st">"sin(theta)"</span>, <span class="st">"cos(theta)"</span>), <span class="dv">2</span>,<span class="dv">2</span>, <span class="at">byrow=</span><span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="fu">matrix</span>(<span class="fu">c</span>(<span class="st">"cos(theta)"</span>, <span class="st">"-sin(theta)"</span>, <span class="st">"sin(theta)"</span>, <span class="st">"cos(theta)"</span>), <span class="dv">2</span>,<span class="dv">2</span>, <span class="at">byrow=</span><span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>matrix(c("cos(theta)", "-sin(theta)", "sin(theta)", "cos(theta)"), 2, 2, byrow = 1) = 
    c1         c2         
@@ -315,42 +524,136 @@ r2 sin(theta) cos(theta) </code></pre>
 \sin{\theta} &amp; \cos{\theta}
 \end{bmatrix}\]</span>
 </section>
-<section id="テスト-行列フル" class="level2">
-<h2 class="anchored" data-anchor-id="テスト-行列フル">テスト 行列フル</h2>
-<p>A%<em>%ginv(t(A)%</em>%A)%*%t(A) <span class="math display">\[A{{A}^{T}A}^{-}{A}^{T}\]</span> </p>
+<section id="テスト-行列-9" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-9">テスト　行列</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(text)</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(invA2d)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>invA2d = 
+   c1                       c2                      
+r1 1/(a11*a22-a21*a12)*a22  -1/(a11*a22-a21*a12)*a12
+r2 -1/(a11*a22-a21*a12)*a21 1/(a11*a22-a21*a12)*a11 </code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_knit<span class="sc">$</span><span class="fu">set</span>(<span class="at">progress =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- 子チャンク生成用のコード ----</span></span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (text <span class="cf">in</span> mat2sum_list[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]) {</span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク1: 通常のR出力（Print関数を用いて）</span></span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># eval(parse(text=text))</span></span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># </span></span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># child_chunk1 &lt;- paste0(</span></span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   "```{r}\n",</span></span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   text, "\n\n", </span></span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   eval(parse(text=text)), "\n\n",</span></span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   "```\n"</span></span>
-<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># )</span></span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">'## テスト　mat2sum</span><span class="sc">\\</span><span class="st">n</span><span class="sc">\\</span><span class="st">n'</span>)</span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text)</span>
-<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span>
-<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力</span></span>
-<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>  child_chunk2 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
-<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```{r, results='asis', echo=FALSE}</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat(convert_to_tex_mat2sum("</span>, text, <span class="st">"))</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```</span><span class="sc">\n</span><span class="st">"</span></span>
-<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>  <span class="co"># それぞれの子チャンクを実行して出力に組み込む</span></span>
-<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># cat(knitr::knit_child(text = child_chunk1))</span></span>
-<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(knitr<span class="sc">::</span><span class="fu">knit_child</span>(<span class="at">text =</span> child_chunk2))</span>
-<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<span class="math display">\[\begin{bmatrix}
+\frac{1}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{22} &amp; \frac{-1}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{12} \\
+\frac{-1}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{21} &amp; \frac{1}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{11}
+\end{bmatrix}\]</span>
+</section>
+<section id="テスト-行列-10" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-10">テスト　行列</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(A2<span class="sc">%*%</span>invA2d)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>A2 %*% invA2d = 
+   c1                                                  c2                                                  
+r1 a11/(a11*a22-a21*a12)*a22-a12/(a11*a22-a21*a12)*a21 -a11/(a11*a22-a21*a12)*a12+a12/(a11*a22-a21*a12)*a11
+r2 a21/(a11*a22-a21*a12)*a22-a22/(a11*a22-a21*a12)*a21 -a21/(a11*a22-a21*a12)*a12+a22/(a11*a22-a21*a12)*a11</code></pre>
+</div>
+</div>
+<span class="math display">\[\begin{bmatrix}
+\frac{a_{11}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{22} - \frac{a_{12}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{21} &amp; \frac{-a_{11}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{12} + \frac{a_{12}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{11} \\
+\frac{a_{21}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{22} - \frac{a_{22}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{21} &amp; \frac{-a_{21}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{12} + \frac{a_{22}}{\left(a_{11} \cdot a_{22} - a_{21} \cdot a_{12}\right)} \cdot a_{11}
+\end{bmatrix}\]</span>
+</section>
+<section id="テスト-行列-11" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-11">テスト　行列</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(<span class="fu">t</span>(bigA))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>t(bigA) = 
+   r1     r2    
+c1 t(A11) t(A21)
+c2 t(A12) t(A22)
+attr(,"fullsymb")
+[1] 1</code></pre>
+</div>
+</div>
+<span class="math display">\[\begin{bmatrix}
+{A_{11}}^{T} &amp; {A_{21}}^{T} \\
+{A_{12}}^{T} &amp; {A_{22}}^{T}
+\end{bmatrix}\]</span>
+</section>
+<section id="テスト-行列-12" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-12">テスト　行列</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(bigA<span class="sc">%*%</span>bigB)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>bigA %*% bigB = 
+   c1                  c2                 
+r1 A11%*%B11+A12%*%B21 A11%*%B12+A12%*%B22
+r2 A21%*%B11+A22%*%B21 A21%*%B12+A22%*%B22
+attr(,"fullsymb")
+[1] 1</code></pre>
+</div>
+</div>
+<span class="math display">\[\begin{bmatrix}
+A_{11}B_{11} + A_{12}B_{21} &amp; A_{11}B_{12} + A_{12}B_{22} \\
+A_{21}B_{11} + A_{22}B_{21} &amp; A_{21}B_{12} + A_{22}B_{22}
+\end{bmatrix}\]</span>
+</section>
+<section id="テスト-行列-13" class="level2">
+<h2 class="anchored" data-anchor-id="テスト-行列-13">テスト　行列</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Print</span>(invbigA)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>invbigA = 
+   c1                                                                          c2                                             
+r1 inv(A11)-inv(A11)%*%A12%*%inv(A22-A21%*%inv(A11)%*%A12)%*%(-A21%*%inv(A11)) -inv(A11)%*%A12%*%inv(A22-A21%*%inv(A11)%*%A12)
+r2 -inv(A22-A21%*%inv(A11)%*%A12)%*%A21%*%inv(A11)                             inv(A22-A21%*%inv(A11)%*%A12)                  
+attr(,"fullsymb")
+[1] 1</code></pre>
+</div>
+</div>
+<span class="math display">\[\begin{bmatrix}
+{A_{11}}^{-1} - {A_{11}}^{-1}A_{12}{A_{22} - A_{21}{A_{11}}^{-1}A_{12}}^{-1}\left(-A_{21}{A_{11}}^{-1}\right) &amp; -{A_{11}}^{-1}A_{12}{A_{22} - A_{21}{A_{11}}^{-1}A_{12}}^{-1} \\
+-{A_{22} - A_{21}{A_{11}}^{-1}A_{12}}^{-1}A_{21}{A_{11}}^{-1} &amp; {A_{22} - A_{21}{A_{11}}^{-1}A_{12}}^{-1}
+\end{bmatrix}\]</span>
+<!-- ```{r, results='asis'} -->
+<!-- #| echo: false -->
+<!-- # ---- 子チャンク生成用のコード ---- -->
+<!-- for (text in matrix_list) { -->
+<!--   cat('## テスト 行列フル\n\n') -->
+<!--   cat(text, "\\n\\n") -->
+<!--   cat(to_latex(text, doller = TRUE), "\\n\\n") -->
+<!-- } -->
+<!-- ``` -->
+</section>
+<section id="総和記法未完成" class="level2">
+<h2 class="anchored" data-anchor-id="総和記法未完成">総和記法（未完成）</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(text)</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_knit<span class="sc">$</span><span class="fu">set</span>(<span class="at">progress =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- 子チャンク生成用のコード ----</span></span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (text <span class="cf">in</span> mat2sum_list[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]) {</span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク1: 通常のR出力（Print関数を用いて）</span></span>
+<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># eval(parse(text=text))</span></span>
+<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># </span></span>
+<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># child_chunk1 &lt;- paste0(</span></span>
+<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   "```{r}\n",</span></span>
+<span id="cb52-10"><a href="#cb52-10" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   text, "\n\n", </span></span>
+<span id="cb52-11"><a href="#cb52-11" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   eval(parse(text=text)), "\n\n",</span></span>
+<span id="cb52-12"><a href="#cb52-12" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   "```\n"</span></span>
+<span id="cb52-13"><a href="#cb52-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># )</span></span>
+<span id="cb52-14"><a href="#cb52-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">'## テスト　mat2sum</span><span class="sc">\\</span><span class="st">n</span><span class="sc">\\</span><span class="st">n'</span>)</span>
+<span id="cb52-15"><a href="#cb52-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb52-16"><a href="#cb52-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text)</span>
+<span id="cb52-17"><a href="#cb52-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span>
+<span id="cb52-18"><a href="#cb52-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb52-19"><a href="#cb52-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力</span></span>
+<span id="cb52-20"><a href="#cb52-20" aria-hidden="true" tabindex="-1"></a>  child_chunk2 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
+<span id="cb52-21"><a href="#cb52-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```{r, results='asis', echo=FALSE}</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb52-22"><a href="#cb52-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat(convert_to_tex_mat2sum("</span>, text, <span class="st">"))</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb52-23"><a href="#cb52-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb52-24"><a href="#cb52-24" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb52-25"><a href="#cb52-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb52-26"><a href="#cb52-26" aria-hidden="true" tabindex="-1"></a>  <span class="co"># それぞれの子チャンクを実行して出力に組み込む</span></span>
+<span id="cb52-27"><a href="#cb52-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># cat(knitr::knit_child(text = child_chunk1))</span></span>
+<span id="cb52-28"><a href="#cb52-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(knitr<span class="sc">::</span><span class="fu">knit_child</span>(<span class="at">text =</span> child_chunk2))</span>
+<span id="cb52-29"><a href="#cb52-29" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 </section>
 
