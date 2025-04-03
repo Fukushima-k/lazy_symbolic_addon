@@ -1,0 +1,210 @@
+---
+title: "Untitled"
+format: html
+editor: source
+---
+  
+## Quarto
+```{r}
+#| echo: false
+#| warning: false
+
+
+
+# install.packages("http://mayekawa.in.coocan.jp/Rpackages/lazy.tools_0.1.6.zip", repos=NULL)
+# install.packages("http://mayekawa.in.coocan.jp/Rpackages/lazy.mat_0.1.4.zip", repos=NULL)
+# 
+# install.packages("http://mayekawa.in.coocan.jp/Rpackages/lazy.symbolic_1.0.0.20250315.zip", repos=NULL)
+# # install.packages("http://mayekawa.in.coocan.jp/Rpackages/lazy.symbolic2_0.1.4.zip", repos=NULL)
+
+library(lazy.symbolic)
+library(dplyr)
+
+
+# set output line width
+options(width=500)
+
+# 数値演算子の拡張:
+modify_math_operators()
+
+# set output line width
+options(width=500)
+# 行列とベクトルの定義
+# 
+# ベクトル
+v <- demomat(3,1,root="v",vec=1)   # 3 x 1 の縦ベクトル
+u <- demomat(3,1,root="u",vec=1)
+u4 <- demomat(4,1,root="u",vec=1)  # 4 x 1 の縦ベクトル
+v4 <- demomat(4,1,root="v",vec=1)
+
+
+# 定数
+one3 <- matrix("1",3,1) # col vector of length 3 consisting of 1s.
+one4 <- matrix("1",4,1) # col vector of length 4 consisting of 1s.
+zero3 <- matrix("0",3,1) # col vector of length 3 consisting of 0s.
+zero4 <- matrix("0",4,1) # col vector of length 4 consisting of 0s.
+
+
+# 行列
+A <- demomat(4,3,root="a")    # 4 x 3 の行列
+B <- demomat(4,3,root="b")
+
+X <- demomat(3,2,root="x")    # 3 x 2 の行列
+Y <- demomat(3,2,root="y")
+Z <- demomat(3,2,root="z")
+
+
+Y2 <- demomat(2,3,root="y")    # 2 x 3 の行列
+Z2 <- demomat(3,3,root="y")    # 3 x 3 の行列
+
+# 直接に要素を定義して 2 x 3 の行列を作る
+X2 <- matrix( paste("x",outer(1:2,1:3, paste, sep=""), sep=""), 2,3 )
+
+# 対角行列
+D3 <- demomat(3,3,root="d", shape="diag")    # 3 x 3 の対角行列
+D4 <- demomat(4,4,root="d", shape="diag")    # 4 x 4 の対角行列
+
+# 対称行列
+S <- demomat(3,3,root="s", shape="sym")    # 3 x 3 の対称行列
+Su <- demomat(3,3,root="s", shape="symU")    # 3 x 3 の対称行列
+
+# 三角行列
+L <- demomat(3,3,root="s", shape="lowert")    # 3 x 3 の下三角行列
+U <- demomat(3,3,root="s", shape="uppert", nodiag=1)    # 3 x 3 の上三角行列
+
+# 単位行列
+I3 <- diag(3)
+I4 <- diag(4)
+
+# 零行列
+Zero3 <- matrix("0",3,3)
+
+# set output line width
+options(width=500)
+# 中心化行列:  J = I_n - (1/n) * one_n %*% t(one_n)
+J3=I3 - "(1/3)" * one3 %*% t(one3) 
+
+
+L1=demomat(3,3,root="L1_",shape="lowert")
+L2=demomat(3,3,root="L2_",shape="lowert")
+```
+
+
+
+
+```{r}
+source("main_functions.R")
+options(pcre.recursion_limit = 5)
+```
+
+
+# 総和記号の変換
+```{r}
+library(stringr)
+expr <- "s(v[s1]*A[s1,j],{s1})"
+expr <- "s(v[s1]*A[s1,j],{s1,1,ncol(A)})"
+print(expr)
+
+expr <- "A%*%X %*% Y2" %>% mat2sum(simple = 0)
+```
+
+
+
+# テストセクション
+
+```{r}
+text_list <- list("S", 
+                  '"c" * v', "u %@% t(v)", 
+                  'I3 - "(1/3)" * one3 %*% t(one3)',
+                  "(1/4) * t(one4) %*% A",
+                  "t(v) %*% S %*% v |> Expand()",
+                  "L1 %*% L2",
+                  'matrix(c("cos(theta)", "-sin(theta)", "sin(theta)", "cos(theta)"), 2,2, byrow=1)'
+)
+
+matrix_list <- list('A%*%ginv(t(A)%*%A)%*%t(A)')
+
+mat2sum_list <- list('mat2sum( "A + B", simple=0 )',
+                     'mat2sum("t(v) %*% S %*% v", root="k",simple=0)',
+                     'mat2sum("diag(D1)%*%A%*%diag(D2)")',
+                     'mat2sum("t(f)%*%A%*%t(B)%*%C%*%Diag(D)%*%t(E)")')
+```
+
+
+```{r, results='asis'}
+#| echo: false
+
+knitr::opts_knit$set(progress = FALSE)
+# ---- 子チャンク生成用のコード ----
+for (text in text_list) {
+  # 子チャンク1: 通常のR出力（Print関数を用いて）
+  child_chunk1 <- paste0(
+    "```{r}\n",
+    "Print(", text, ")\n",
+    "```\n"
+  )
+
+  # 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力
+  child_chunk2 <- paste0(
+    "```{r, results='asis', echo=FALSE}\n",
+    "cat(to_tex_matrix(", text, "))\n",
+    "```\n"
+  )
+
+  # それぞれの子チャンクを実行して出力に組み込む
+  cat('## テスト　行列\\n\\n')
+  cat(knitr::knit_child(text = child_chunk1))
+  cat(knitr::knit_child(text = child_chunk2))
+}
+```
+
+```{r, results='asis'}
+#| echo: false
+
+# ---- 子チャンク生成用のコード ----
+for (text in matrix_list) {
+  cat('## テスト 行列フル\n\n')
+  cat(text, "\\n\\n")
+  cat(to_latex(text, doller = TRUE), "\\n\\n")
+}
+```
+  
+```{r}
+#| eval: false
+print(text)
+eval(parse(text=text))
+```
+
+```{r, results='asis'}
+#| eval: false
+
+knitr::opts_knit$set(progress = FALSE)
+# ---- 子チャンク生成用のコード ----
+for (text in mat2sum_list[1:2]) {
+  # 子チャンク1: 通常のR出力（Print関数を用いて）
+  
+  # eval(parse(text=text))
+  # 
+  # child_chunk1 <- paste0(
+  #   "```{r}\n",
+  #   text, "\n\n", 
+  #   eval(parse(text=text)), "\n\n",
+  #   "```\n"
+  # )
+  cat('## テスト　mat2sum\\n\\n')
+  
+  print(text)
+  eval(parse(text=text))
+  
+  # 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力
+  child_chunk2 <- paste0(
+    "```{r, results='asis', echo=FALSE}\n",
+    "cat(convert_to_tex_mat2sum(", text, "))\n",
+    "```\n"
+  )
+  
+  # それぞれの子チャンクを実行して出力に組み込む
+  # cat(knitr::knit_child(text = child_chunk1))
+  cat(knitr::knit_child(text = child_chunk2))
+}
+```
