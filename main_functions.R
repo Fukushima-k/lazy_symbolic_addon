@@ -66,7 +66,12 @@
 #   return(expr)
 # }
 
-to_latex <- function(expr_str, doller = FALSE) {
+to_latex <- function(expr_str, doller = TRUE,
+                     mat2sum = FALSE, simple_mat2sum = FALSE) {
+  
+  if(mat2sum||simple_mat2sum)
+    expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
+  
   # 入力文字列を R の式にパース
   expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
     warning("入力が有効な R 式ではありません")
@@ -98,6 +103,28 @@ to_latex <- function(expr_str, doller = FALSE) {
     } else if (is.call(e)) {
       # 呼び出しの場合：演算子や関数呼び出し
       op <- as.character(e[[1]])
+      
+      if(mat2sum||simple_mat2sum){
+        if(e[[1]] == "s"){
+          # sum_scripts <- e[[3]] %>% as.character()
+          ss <- e[[3]]  # sum_scripts
+          if(length(ss) <= 2)
+            return(paste0("\\sum_{", rec_convert(ss[[2]]), "}", rec_convert(e[[2]])))
+          else
+            return(paste0("\\sum_{", rec_convert(ss[[2]]), "=",rec_convert(ss[[3]]), "}^{", rec_convert(ss[[4]]), "}", rec_convert(e[[2]])))
+        }else if(e[[1]] == "*"){
+          return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
+          # return(paste0(e[[2]], " \\cdot ", e[[3]]))
+        }else if(e[[1]] == "["){
+          subscripts_elements <- e %>% as.character()
+          return(paste0(subscripts_elements[2], "_{", subscripts_elements[-(1:2)] %>% paste(collapse = ","), "}"))
+        }else if((op %in% c("nrow", "ncol"))){
+          if(simple_mat2sum)
+            return(eval(e))
+          else 
+            return(paste0(op %>% str_sub(2,2), "(", rec_convert(e[[2]]), ")"))
+        }
+      }
       
       if (op == "/") {
         # 分数：a / b を \frac{a}{b} に変換
@@ -144,10 +171,22 @@ to_latex <- function(expr_str, doller = FALSE) {
   
   expr <- rec_convert(expr)
   
+  if(simple_mat2sum){
+    # gsub() の replacement に関数を渡す方法
+      expr <- expr %>% 
+        str_replace_all("s1", "k") %>% 
+        str_replace_all("s2", "l") %>% 
+        str_replace_all("s3", "m") %>% 
+        str_replace_all("s4", "n") %>% 
+        str_replace_all("s5", "o")
+  }
+  
   # subscriptの処理
-  expr <- gsub("([a-zA-Z0-9]+)_([a-zA-Z0-9]+)", "{\\1}_{\\2}", expr)
+  expr <- gsub("([a-zA-Z0-9]+)_([a-zA-Z0-9]+)", "{{\\1}_{\\2}}", expr)
   # expr <- gsub("([a-zA-Z]+)([0-9]+)", "\\1_{\\2}", expr)
-  expr <- gsub("(?<!_)([A-Za-z]+)([0-9]+)(?!}_)", "\\1_{\\2}", expr, perl = TRUE)
+  expr <- gsub("(?<!_)([A-Za-z]+)([0-9]+)(?!}_)", "{\\1_{\\2}}", expr, perl = TRUE)
+  
+ 
   
   if(doller){
     expr <- paste0("$$", expr, "$$")
@@ -180,6 +219,43 @@ convert_to_tex_mat2sum <- function(expr){
   }
   sprintf("$$\n%s\n$$", tex)
 }
+
+
+
+convert_to_tex_mat2sum <- function(expr){
+  
+  
+  
+  tex <- expr
+  tex_past <- ""
+  I <- -1
+  
+  expr <- "s(v[k1],{k1,1,nrow(v)})"
+  
+  
+  
+  while(tex != tex_past){
+    I <- I+1
+    tex_past <- tex
+    tex <- gsub("s(\\(((?:[^()]+|(?1))*),\\{(.+)\\}\\))", "\\\\sum_{\\3} \\2", tex_past, perl = TRUE)  # かっこなし
+    
+    content <- sub(".*\\\\sum_\\{([^}]*)\\}.*", "\\1", tex)
+    elements <- strsplit(content, ",")[[1]]
+    if(length(elements) == 1){
+      temp <- sprintf("{%s}", elements) 
+    }else{
+      temp <- glue::glue("{<elements[1]>=<elements[2]>}^{<elements[3]>}", 
+                         .open = "<", .close = ">")
+    }
+    
+    tex <- tex %>% str_replace("(?<!\\{)\\\\sum_(\\{.*?\\})", sprintf("{\\\\sum_%s}", temp))
+  }; for(i in 1:I){
+    tex <- tex %>% str_replace_all(sprintf("s%s", i), sprintf("s_{%s}", i))
+  }
+  sprintf("$$\n%s\n$$", tex)
+}
+
+
 
 to_tex_matrix <- function(df, type =c("matrix", "mat2sum")) {
   type = match.arg(type)

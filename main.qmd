@@ -1,6 +1,8 @@
 ---
 title: "lazy_symbolic addon"
-format: html
+format: 
+  html:
+    toc: true
 editor: source
 ---
   
@@ -8,8 +10,9 @@ editor: source
 
 ### パッケージの導入
 ```{r}
+library(tidyverse)
 library(lazy.symbolic)
-library(dplyr)
+# lazy.symbolicを後にしないと、関数がconflilctしてうまくいかない。
 ```
 
 
@@ -182,7 +185,8 @@ mat2sum_list <- list('mat2sum( "A + B", simple=0 )',
 
 knitr::opts_knit$set(progress = FALSE)
 # ---- 子チャンク生成用のコード ----
-for (text in text_list) {
+for (text_i in seq_along(text_list)) {
+  text <- text_list[[text_i]]
   # 子チャンク1: 通常のR出力（Print関数を用いて）
   child_chunk1 <- paste0(
     "```{r}\n",
@@ -198,7 +202,7 @@ for (text in text_list) {
   )
 
   # それぞれの子チャンクを実行して出力に組み込む
-  cat('## テスト　行列\\n\\n')
+  cat(sprintf('## テスト　行列 その%s\\n\\n', text_i))
   cat(knitr::knit_child(text = child_chunk1))
   cat(knitr::knit_child(text = child_chunk2))
 }
@@ -218,40 +222,47 @@ for (text in text_list) {
 ## 総和記法（未完成）
 ```{r}
 #| eval: false
+text = 'mat2sum("t(v) %*% S %*% v", root="k",simple=0)'
 print(text)
-eval(parse(text=text))
+(expr <- eval(parse(text=text)))
 ```
 
+
+$$
+\sum_{k_{1}=1}^{nrow(v)}v_{k_{1}}\sum_{k_{2}=1}^{ncol(S)}S_{k_{1},k_{2}}v_{k_{2}}
+$$
+
+
 ```{r, results='asis'}
-#| eval: false
+#| eval: true
 
 knitr::opts_knit$set(progress = FALSE)
 # ---- 子チャンク生成用のコード ----
-for (text in mat2sum_list[1:2]) {
+for (text_i in seq_along(mat2sum_list)) {
   # 子チャンク1: 通常のR出力（Print関数を用いて）
-  
+  text <- mat2sum_list[[text_i]]
   # eval(parse(text=text))
   # 
-  # child_chunk1 <- paste0(
-  #   "```{r}\n",
-  #   text, "\n\n", 
-  #   eval(parse(text=text)), "\n\n",
-  #   "```\n"
-  # )
-  cat('## テスト　mat2sum\\n\\n')
-  
-  print(text)
-  eval(parse(text=text))
+  child_chunk1 <- paste0(
+    "```{r}\n",
+    "text", "\n\n",
+    "eval(parse(text=text))", "\n\n",
+    "```\n"
+  )
   
   # 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力
   child_chunk2 <- paste0(
     "```{r, results='asis', echo=FALSE}\n",
-    "cat(convert_to_tex_mat2sum(", text, "))\n",
-    "```\n"
+    "cat('mat2sum=TRUE')\n",
+    "cat(to_latex(", text, ", mat2sum=TRUE))\n\n",
+    "cat('simple_mat2sum=TRUE')\n",
+    "cat(to_latex(", text, ", simple_mat2sum=TRUE))\n\n",
+    "```\n\n"
   )
   
   # それぞれの子チャンクを実行して出力に組み込む
-  # cat(knitr::knit_child(text = child_chunk1))
+  cat(sprintf('## テスト　mat2sum その%s\\n\\n', text_i))
+  cat(knitr::knit_child(text = child_chunk1))
   cat(knitr::knit_child(text = child_chunk2))
 }
 ```
