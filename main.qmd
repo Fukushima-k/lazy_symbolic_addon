@@ -124,12 +124,18 @@ options(pcre.recursion_limit = 5)
 - 関数一覧
     - to_latex()
         - 要素ごとにLatex記法に変換する関数
+        - mat2sum = TRUEにすると、総和記号による表記もLaTeX記法に変換できる。
+        - simple_mat2sum = TRUEにすると、さらにシンプルな表記になる。
     - to_tex_matrix()
         - 行列ごとLatex記法に変換する関数
 - 使い方
     - 変換したい当該オブジェクトを引数に上記関数を使用すると、Latex記法の文字列が返ってくる。
     - QuartoのRチャンクにおいて、チャンクオプションをresults:"asis"にすると、Rの返した結果をmarkdown上に直接記述されたものと解釈してコンパイルできる。
         - 注：このオプションをつけないと、あくまでRチャンクの結果としての文字列を返すのみになり、これをさらにコンパイルすることが出来なくなる。
+- このdocumentのsource
+    - テストセクションは、results:"asis"をループで書くために、child_chunkを活用している。
+    - そのため、ソースコードは直接実行できないものになっている。
+    - 自分で実行するためのコードは使用例を参照。
         
 ## 使用例
 
@@ -224,14 +230,19 @@ for (text_i in seq_along(text_list)) {
 #| eval: false
 text = 'mat2sum("t(v) %*% S %*% v", root="k",simple=0)'
 print(text)
-(expr <- eval(parse(text=text)))
+expr <- eval(parse(text=text))
+print(expr)
 ```
 
 
-$$
-\sum_{k_{1}=1}^{nrow(v)}v_{k_{1}}\sum_{k_{2}=1}^{ncol(S)}S_{k_{1},k_{2}}v_{k_{2}}
-$$
 
+```{r}
+#| results: "asis"
+expr <- mat2sum("t(v) %*% S %*% v", root="k",simple=0)
+# チャンクオプションとして、#| results: "asis"を使用
+to_latex(expr, mat2sum = TRUE) %>% cat()
+to_latex(expr, simple_mat2sum = TRUE) %>% cat()
+```
 
 ```{r, results='asis'}
 #| eval: true

@@ -346,6 +346,8 @@ The following objects are masked from 'package:purrr':
 <li>to_latex()
 <ul>
 <li>要素ごとにLatex記法に変換する関数</li>
+<li>mat2sum = TRUEにすると、総和記号による表記もLaTeX記法に変換できる。</li>
+<li>simple_mat2sum = TRUEにすると、さらにシンプルな表記になる。</li>
 </ul></li>
 <li>to_tex_matrix()
 <ul>
@@ -359,6 +361,12 @@ The following objects are masked from 'package:purrr':
 <ul>
 <li>注：このオプションをつけないと、あくまでRチャンクの結果としての文字列を返すのみになり、これをさらにコンパイルすることが出来なくなる。</li>
 </ul></li>
+</ul></li>
+<li>このdocumentのsource
+<ul>
+<li>テストセクションは、results:“asis”をループで書くために、child_chunkを活用している。</li>
+<li>そのため、ソースコードは直接実行できないものになっている。</li>
+<li>自分で実行するためのコードは使用例を参照。</li>
 </ul></li>
 </ul>
 <section id="使用例" class="level2">
@@ -670,49 +678,53 @@ attr(,"fullsymb")
 <div class="cell">
 <div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>text <span class="ot">=</span> <span class="st">'mat2sum("t(v) %*% S %*% v", root="k",simple=0)'</span></span>
 <span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(text)</span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>(expr <span class="ot">&lt;-</span> <span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>expr <span class="ot">&lt;-</span> <span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(expr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p><span class="math display">\[
-\sum_{k_{1}=1}^{nrow(v)}v_{k_{1}}\sum_{k_{2}=1}^{ncol(S)}S_{k_{1},k_{2}}v_{k_{2}}
-\]</span></p>
-<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_knit<span class="sc">$</span><span class="fu">set</span>(<span class="at">progress =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- 子チャンク生成用のコード ----</span></span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (text_i <span class="cf">in</span> <span class="fu">seq_along</span>(mat2sum_list)) {</span>
-<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク1: 通常のR出力（Print関数を用いて）</span></span>
-<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  text <span class="ot">&lt;-</span> mat2sum_list[[text_i]]</span>
-<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># eval(parse(text=text))</span></span>
-<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># </span></span>
-<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a>  child_chunk1 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
-<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```{r}</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"text"</span>, <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
-<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"eval(parse(text=text))"</span>, <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
-<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```</span><span class="sc">\n</span><span class="st">"</span></span>
-<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb46-15"><a href="#cb46-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力</span></span>
-<span id="cb46-16"><a href="#cb46-16" aria-hidden="true" tabindex="-1"></a>  child_chunk2 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
-<span id="cb46-17"><a href="#cb46-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```{r, results='asis', echo=FALSE}</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb46-18"><a href="#cb46-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat('mat2sum=TRUE')</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb46-19"><a href="#cb46-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat(to_latex("</span>, text, <span class="st">", mat2sum=TRUE))</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
-<span id="cb46-20"><a href="#cb46-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat('simple_mat2sum=TRUE')</span><span class="sc">\n</span><span class="st">"</span>,</span>
-<span id="cb46-21"><a href="#cb46-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat(to_latex("</span>, text, <span class="st">", simple_mat2sum=TRUE))</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
-<span id="cb46-22"><a href="#cb46-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```</span><span class="sc">\n\n</span><span class="st">"</span></span>
-<span id="cb46-23"><a href="#cb46-23" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb46-24"><a href="#cb46-24" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb46-25"><a href="#cb46-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># それぞれの子チャンクを実行して出力に組み込む</span></span>
-<span id="cb46-26"><a href="#cb46-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">'## テスト　mat2sum その%s</span><span class="sc">\\</span><span class="st">n</span><span class="sc">\\</span><span class="st">n'</span>, text_i))</span>
-<span id="cb46-27"><a href="#cb46-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(knitr<span class="sc">::</span><span class="fu">knit_child</span>(<span class="at">text =</span> child_chunk1))</span>
-<span id="cb46-28"><a href="#cb46-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(knitr<span class="sc">::</span><span class="fu">knit_child</span>(<span class="at">text =</span> child_chunk2))</span>
-<span id="cb46-29"><a href="#cb46-29" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>expr <span class="ot">&lt;-</span> <span class="fu">mat2sum</span>(<span class="st">"t(v) %*% S %*% v"</span>, <span class="at">root=</span><span class="st">"k"</span>,<span class="at">simple=</span><span class="dv">0</span>)</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="co"># チャンクオプションとして、#| results: "asis"を使用</span></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="fu">to_latex</span>(expr, <span class="at">mat2sum =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> <span class="fu">cat</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><span class="math display">\[\sum_{{k_{1}}=1}^{r(v)}v_{{k_{1}}}\sum_{{k_{2}}=1}^{c(S)}S_{{k_{1}},{k_{2}}}v_{{k_{2}}}\]</span></p>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">to_latex</span>(expr, <span class="at">simple_mat2sum =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> <span class="fu">cat</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><span class="math display">\[\sum_{{k_{1}}=1}^{3}v_{{k_{1}}}\sum_{{k_{2}}=1}^{3}S_{{k_{1}},{k_{2}}}v_{{k_{2}}}\]</span></p>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_knit<span class="sc">$</span><span class="fu">set</span>(<span class="at">progress =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- 子チャンク生成用のコード ----</span></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (text_i <span class="cf">in</span> <span class="fu">seq_along</span>(mat2sum_list)) {</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク1: 通常のR出力（Print関数を用いて）</span></span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>  text <span class="ot">&lt;-</span> mat2sum_list[[text_i]]</span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># eval(parse(text=text))</span></span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># </span></span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a>  child_chunk1 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```{r}</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"text"</span>, <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
+<span id="cb48-11"><a href="#cb48-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"eval(parse(text=text))"</span>, <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
+<span id="cb48-12"><a href="#cb48-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb48-13"><a href="#cb48-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb48-14"><a href="#cb48-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb48-15"><a href="#cb48-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力</span></span>
+<span id="cb48-16"><a href="#cb48-16" aria-hidden="true" tabindex="-1"></a>  child_chunk2 <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
+<span id="cb48-17"><a href="#cb48-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```{r, results='asis', echo=FALSE}</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb48-18"><a href="#cb48-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat('mat2sum=TRUE')</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb48-19"><a href="#cb48-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat(to_latex("</span>, text, <span class="st">", mat2sum=TRUE))</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
+<span id="cb48-20"><a href="#cb48-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat('simple_mat2sum=TRUE')</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb48-21"><a href="#cb48-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cat(to_latex("</span>, text, <span class="st">", simple_mat2sum=TRUE))</span><span class="sc">\n\n</span><span class="st">"</span>,</span>
+<span id="cb48-22"><a href="#cb48-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"```</span><span class="sc">\n\n</span><span class="st">"</span></span>
+<span id="cb48-23"><a href="#cb48-23" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb48-24"><a href="#cb48-24" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb48-25"><a href="#cb48-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># それぞれの子チャンクを実行して出力に組み込む</span></span>
+<span id="cb48-26"><a href="#cb48-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">'## テスト　mat2sum その%s</span><span class="sc">\\</span><span class="st">n</span><span class="sc">\\</span><span class="st">n'</span>, text_i))</span>
+<span id="cb48-27"><a href="#cb48-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(knitr<span class="sc">::</span><span class="fu">knit_child</span>(<span class="at">text =</span> child_chunk1))</span>
+<span id="cb48-28"><a href="#cb48-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(knitr<span class="sc">::</span><span class="fu">knit_child</span>(<span class="at">text =</span> child_chunk2))</span>
+<span id="cb48-29"><a href="#cb48-29" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 <section id="テスト-mat2sum-その1" class="level2">
 <h2 class="anchored" data-anchor-id="テスト-mat2sum-その1">テスト　mat2sum その1</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "mat2sum( \"A + B\", simple=0 )"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "A[i,j] + B[i,j]"</code></pre>
 </div>
@@ -722,11 +734,11 @@ attr(,"fullsymb")
 <section id="テスト-mat2sum-その2" class="level2">
 <h2 class="anchored" data-anchor-id="テスト-mat2sum-その2">テスト　mat2sum その2</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "mat2sum(\"t(v) %*% S %*% v\", root=\"k\",simple=0)"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "s(v[k1]*s(S[k1,k2]*v[k2],{k2,1,ncol(S)}),{k1,1,nrow(v)})"</code></pre>
 </div>
@@ -736,11 +748,11 @@ attr(,"fullsymb")
 <section id="テスト-mat2sum-その3" class="level2">
 <h2 class="anchored" data-anchor-id="テスト-mat2sum-その3">テスト　mat2sum その3</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "mat2sum(\"diag(D1)%*%A%*%diag(D2)\")"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "D1[i,i]*A[i,j]*D2[j,j]"</code></pre>
 </div>
@@ -750,11 +762,11 @@ attr(,"fullsymb")
 <section id="テスト-mat2sum-その4" class="level2">
 <h2 class="anchored" data-anchor-id="テスト-mat2sum-その4">テスト　mat2sum その4</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>text</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "mat2sum(\"t(f)%*%A%*%t(B)%*%C%*%Diag(D)%*%t(E)\")"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text=</span>text))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "s(f[s1]*s(A[s1,s2]*s(B[s3,s2]*s(C[s3,s4]*D[s4,s4]*E[j,s4],{s4}),{s3}),{s2}),{s1})"</code></pre>
 </div>
