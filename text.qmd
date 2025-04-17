@@ -168,13 +168,8 @@ sum2mat <- function(expr_str){
       
       # summation 2 matrixの対象
       if(1){
-        summation_var <- expr[[3]][[2]]
-        daiichi <- expr[[2]][-1]
-        Mat_symbol_vec <- daiichi %>% sapply(function(x)x[[2]])
-        subv_mat <- daiichi %>% sapply(function(x)x[-(1:2)] %>% as.character)
-        # subv <- subv_vec[,2]; Mat_symbol <- Mat_symbol_vec[2]
-        
-        result <- element2Matrix_2(subv_mat,Mat_symbol_vec,summation_var)
+        sum_var <- expr[[3]][[2]]
+        result <- sum2mat_convert(expr[[2]], sum_var)
         return(result)
       }else{
         print("想定外です１")
@@ -183,34 +178,27 @@ sum2mat <- function(expr_str){
       return("これはsummation対象です。")
     }else if(op %in% c("*", "+", "-")){
       
-      
-      
-      
-      
+      yoso <- expr[-1]
+      Mat_symbol_vec <- yoso %>% sapply(function(x)x[[2]])
+      subv_mat <- yoso %>% sapply(function(x)x[-(1:2)] %>% as.character)
+      # subv <- subv_vec[,2]; Mat_symbol <- Mat_symbol_vec[2]
+      # operator <- op
+      result <- element2Matrix_2(subv_mat,Mat_symbol_vec, sum_var, op)
+      return(result)
     }else {  
       print("想定外です２")
       return(deparse(expr))
     }
   }
+  
   result <- sum2mat_convert(expr)
   
   return(result)
 }
   
-element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, summation_var=NULL, operator = NULL){
+element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, sum_var=NULL, operator = NULL){
     
-    if(is.null(summation_var)){
-      if(0){
-        # no summationの場合。まだ、全体には未実装。
-        summation_var = NULL
-        Mat_symbol_vec <- list("a", "b")
-        subv_mat <- matrix(c("i","i", "i", "j"),2)
-        subv_mat <- matrix(c("i","j", "i", "j"),2)
-        subv_mat <- matrix(c("j","i", "i", "j"),2)
-        operator = "*"
-        operator = "+"
-        operator = "-"
-      }
+    if(is.null(sum_var)){
       
       # 要素積、要素和(operator_mat定義済み)
       if(all(subv_mat[,1]==subv_mat[,2])){
@@ -221,6 +209,7 @@ element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, summation_var=NULL, opera
         Mat_symbol_vec_mod <- Mat_symbol_vec
         Mat_symbol_vec_mod[2] <- sprintf("t(%s)", Mat_symbol_vec_mod[2])
       }else{
+        print("想定外です３")
         return("想定されていない添え字パターンです。3")
       }
       operator_mat <- operator
@@ -237,7 +226,7 @@ element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, summation_var=NULL, opera
       #      subsc = summation_var)
       # return()}
     }else{
-    sub_logical <- (subv_mat == summation_var)
+    sub_logical <- (subv_mat == sum_var)
     
     # 右行列と左行列で処理を反転させる
     logic_flip <- list(function(x)x,function(x)!x) 
@@ -267,10 +256,23 @@ expr_str <- "s(a[k,i]*b[k,j],{k})"; sum2mat(expr_str)
 expr_str <- "s(a[i,k]*b[j, k],{k})"; sum2mat(expr_str)
 expr_str <- "s(a[k,i]*b[j, k],{k})"; sum2mat(expr_str)
 
-expr_str <- "s(a[i,i]*b[i,j],{i})"; sum2mat(expr_str)
+expr_str <- "a[i,j]*b[i,j]"; sum2mat(expr_str)
+expr_str <- "a[j,i]*b[i,j]"; sum2mat(expr_str)
+expr_str <- "a[i,j]*b[j,i]"; sum2mat(expr_str)
+expr_str <- "a[j,i]*b[j,i]"; sum2mat(expr_str)
+
+expr_str <- "a[i,j]+b[i,j]"; sum2mat(expr_str)
+expr_str <- "a[j,i]+b[i,j]"; sum2mat(expr_str)
+expr_str <- "a[i,j]+b[j,i]"; sum2mat(expr_str)
+expr_str <- "a[j,i]+b[j,i]"; sum2mat(expr_str)
+
+
 expr_str <- "s(a[i,i]*b[j,i],{i})"; sum2mat(expr_str)
 expr_str <- "s(a[i,j]*b[j,j],{j})"; sum2mat(expr_str)
 expr_str <- "s(a[j,i]*b[j,j],{j})"; sum2mat(expr_str)
+
+
+expr_str <- "s(a[i,k]*s(b[k,l]*c[l,j],{l}),{k})"; sum2mat(expr_str)
 
 
 ```
