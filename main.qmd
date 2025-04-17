@@ -10,6 +10,7 @@ editor: source
 
 ### パッケージの導入
 ```{r}
+# setwd("lazy_symbolic_addon/")
 library(tidyverse)
 library(lazy.symbolic)
 # lazy.symbolicを後にしないと、関数がconflilctしてうまくいかない。
@@ -277,3 +278,9 @@ for (text_i in seq_along(mat2sum_list)) {
   cat(knitr::knit_child(text = child_chunk2))
 }
 ```
+
+
+
+
+
+

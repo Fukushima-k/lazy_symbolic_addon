@@ -1,0 +1,278 @@
+---
+title: "test"
+format: html
+editor: source
+---
+
+```{r}
+library(tidyverse)
+library(lazy.symbolic)
+source("main_functions.R")
+```
+
+```{r}
+expr_str <- expr_str %>%
+  str_replace_all("\\{", "chu_kakko\\(") %>%
+  str_replace_all("\\}", "\\)")
+  
+  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
+    warning("入力が有効な R 式ではありません")
+    return(NULL)
+  })
+expr[[1]]
+```
+
+
+# 新テスト
+```{r}
+expr <- "s(a[i]+b,{i})+c"
+expr_str="s( x * s( s( a[i,j]*b[j,k]*c[k,l], {k}) , {j}),  {l})"
+
+res1 <- sumExpand(expr)
+res2 <- sumMoveIn(expr)
+```
+
+## expr %>% to_latex
+```{r}
+#| results: "asis"
+to_latex(expr, mat2sum = TRUE) %>% cat()
+to_latex(expr, simple_mat2sum = TRUE) %>% cat()
+```
+
+## res1 %>% to_latex
+```{r}
+#| results: "asis"
+to_latex(res1, mat2sum = TRUE) %>% cat()
+to_latex(res1, simple_mat2sum = TRUE) %>% cat()
+```
+
+## res2 %>% to_latex
+```{r}
+#| results: "asis"
+to_latex(res2, mat2sum = TRUE) %>% cat()
+to_latex(res2, simple_mat2sum = TRUE) %>% cat()
+```
+
+
+
+```{r}
+expr_str <- "s( s( a[i,j]*b[j,k]*c[k,l], {k}) , {j})"
+expr_str <- "s( a[i,j]* s(b[j,k]*c[k,l], {k}) , {j})"
+
+
+expr_str <- "s(a[i,k]*b[k,j],{k})"
+
+
+  expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>%str_replace_all("\\}", "\\)")
+  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
+    warning("入力が有効な R 式ではありません")
+    return(NULL)
+  })
+
+  e_temp <- e[[2]][[3]]
+  
+  sum2mat(e)
+  # とにかく、絶対行列にする関数
+  sum2mat_convert <- funcgion(expr){
+    
+    op <- as.character(expr[[1]])
+  }
+  
+  
+  element2Matrix <- function(subv, Mat_symbol, summation_var, side = "L"){
+    sub_logical <- (subv == summation_var)
+    if(side=="R")
+      logic_flip <- `!`
+    else
+      logic_flip <- function(x){x}
+    
+    if(logic_flip(all(sub_logical == c(TRUE, FALSE)))){
+      result <- list(Mat_symbol = sprintf("t(%s)", Mat_symbol),
+           subsc = subv[!sub_logical])
+    }else if(logic_flip(all(sub_logical == c(FALSE, TRUE)))){
+      result <- list(Mat_symbol = Mat_symbol,
+           subsc = subv[!sub_logical])
+    }else if(all(sub_logical == c(TRUE, TRUE))){
+      result <- list(Mat_symbol = sprintf("diag(%s)", Mat_symbol),
+           subsc = subv[!sub_logical])
+    }
+    return(result)
+  }
+  
+  
+  element <- e_temp[[2]][[2]]
+  
+  element2mat_material <- function(element){
+    if("["==element[[1]]){
+      Mat_symbol <- element[[2]] %>% str_to_upper()
+      subv <- element %>% as.character() %>% `[`(-(1:2))
+      
+      return(element2Matrix(subv, Mat_symbol, summation_var, side="L"))
+    }else if("s"==element[[1]]){
+      return(sum2mat)
+    }
+  }
+  
+  sum2mat <- function(e_temp){
+    
+    op <- as.character(e_temp[[1]])
+    
+    if(op == "s"){
+      summation_var <- as.character(e_temp[[3]])[[2]]  
+      
+      if("*"==e_temp[[2]][[1]]){
+        
+        if("["==e_temp[[2]][[2]][[1]] && "[" == e_temp[[2]][[3]][[1]]){
+          first <- e_temp[[2]][[2]]
+          second <- e_temp[[2]][[3]]
+          first_Mat <- first[[2]] %>% str_to_upper()
+          second_Mat <- second[[2]] %>% str_to_upper()
+          
+          first_sub <- first %>% as.character() %>% `[`(-(1:2))
+          second_sub <- second %>% as.character() %>% `[`(-(1:2))
+          
+          subv <- first_sub
+          Mat_symbol <- first_Mat
+          
+          first_res <- element2Matrix(subv=first_sub,  Mat_symbol=first_Mat, summation_var, side="L")
+          second_res <- element2Matrix(subv=second_sub, Mat_symbol=second_Mat, summation_var, side = "R")
+          paste0("(", first_res$Mat_symbol, "%*%", second_res$Mat_symbol, ")[",
+                  first_res$subsc,",", second_res$subsc,"]")
+        }   
+      }
+    }else{
+      return(e_temp)
+    }
+  }
+```
+
+
+```{r}
+
+expr_str <- "s(a[i,k]*b[k,j],{k})"
+expr_str <- "a[i,j]*b[i,j]"
+
+sum2mat <- function(expr_str){
+  expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>%str_replace_all("\\}", "\\)")
+  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
+    warning("入力が有効な R 式ではありません")
+    return(NULL)
+  })
+
+  expr
+  
+  # とにかく、絶対行列にする関数
+  sum2mat_convert <- function(expr,sum_var=NULL){
+    op <- as.character(expr[[1]])
+    if(op == "s"){
+      
+      # summation 2 matrixの対象
+      if(1){
+        summation_var <- expr[[3]][[2]]
+        daiichi <- expr[[2]][-1]
+        Mat_symbol_vec <- daiichi %>% sapply(function(x)x[[2]])
+        subv_mat <- daiichi %>% sapply(function(x)x[-(1:2)] %>% as.character)
+        # subv <- subv_vec[,2]; Mat_symbol <- Mat_symbol_vec[2]
+        
+        result <- element2Matrix_2(subv_mat,Mat_symbol_vec,summation_var)
+        return(result)
+      }else{
+        print("想定外です１")
+        return(deparse(expr))
+      }
+      return("これはsummation対象です。")
+    }else if(op %in% c("*", "+", "-")){
+      
+      
+      
+      
+      
+    }else {  
+      print("想定外です２")
+      return(deparse(expr))
+    }
+  }
+  result <- sum2mat_convert(expr)
+  
+  return(result)
+}
+  
+element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, summation_var=NULL, operator = NULL){
+    
+    if(is.null(summation_var)){
+      if(0){
+        # no summationの場合。まだ、全体には未実装。
+        summation_var = NULL
+        Mat_symbol_vec <- list("a", "b")
+        subv_mat <- matrix(c("i","i", "i", "j"),2)
+        subv_mat <- matrix(c("i","j", "i", "j"),2)
+        subv_mat <- matrix(c("j","i", "i", "j"),2)
+        operator = "*"
+        operator = "+"
+        operator = "-"
+      }
+      
+      # 要素積、要素和(operator_mat定義済み)
+      if(all(subv_mat[,1]==subv_mat[,2])){
+        print("添え字の順が一致")
+        Mat_symbol_vec_mod <- Mat_symbol_vec
+      }else if(all(subv_mat[,1]==rev(subv_mat[,2]))){
+        print("添え字の順が反対")
+        Mat_symbol_vec_mod <- Mat_symbol_vec
+        Mat_symbol_vec_mod[2] <- sprintf("t(%s)", Mat_symbol_vec_mod[2])
+      }else{
+        return("想定されていない添え字パターンです。3")
+      }
+      operator_mat <- operator
+      if(operator_mat == "*") operator_mat <- "%@%"
+      result <- 
+        sprintf("(%s)[%s]", 
+                paste0(Mat_symbol_vec_mod,collapse=operator_mat),
+                paste0(subv_mat[,1],collapse=","))
+      result
+      # 
+      # 
+      # if(all(sub_logical == c(TRUE, TRUE))){ 
+      # result <- list(Mat_symbol = sprintf("diag(%s)", Mat_symbol),
+      #      subsc = summation_var)
+      # return()}
+    }else{
+    sub_logical <- (subv_mat == summation_var)
+    
+    # 右行列と左行列で処理を反転させる
+    logic_flip <- list(function(x)x,function(x)!x) 
+    res <- list() 
+    for(i in 1:2){
+      if(logic_flip[[i]](all(sub_logical[,i] == c(TRUE, FALSE)))){
+          res[[i]] <- list(symbol = sprintf("t(%s)", deparse(Mat_symbol_vec[[i]])),
+                           subsc = subv_mat[!sub_logical[,i], i])
+      }else if(logic_flip[[i]](all(sub_logical[,i]== c(FALSE, TRUE)))){
+          res[[i]] <- list(symbol = Mat_symbol_vec[[i]],
+                           subsc = subv_mat[!sub_logical[,i], i])
+      }
+    }
+     result <- paste0("(", res[[1]]$symbol, "%*%", res[[2]]$symbol, ")","[", 
+               res[[1]]$subsc,",",res[[2]]$subsc,"]")
+    
+    }
+    return(result)
+  }
+    
+    
+  
+
+
+expr_str <- "s(a[i,k]*b[k,j],{k})"; sum2mat(expr_str)
+expr_str <- "s(a[k,i]*b[k,j],{k})"; sum2mat(expr_str)
+expr_str <- "s(a[i,k]*b[j, k],{k})"; sum2mat(expr_str)
+expr_str <- "s(a[k,i]*b[j, k],{k})"; sum2mat(expr_str)
+
+expr_str <- "s(a[i,i]*b[i,j],{i})"; sum2mat(expr_str)
+expr_str <- "s(a[i,i]*b[j,i],{i})"; sum2mat(expr_str)
+expr_str <- "s(a[i,j]*b[j,j],{j})"; sum2mat(expr_str)
+expr_str <- "s(a[j,i]*b[j,j],{j})"; sum2mat(expr_str)
+
+
+```
+
+
