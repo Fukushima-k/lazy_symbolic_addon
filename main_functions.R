@@ -144,3 +144,123 @@ to_tex_matrix <- function(df, type =c("matrix")) {
     return(tex_code)
   }
 }
+# sum2mat -----------------------------------------------------------------
+
+
+sum2mat <- function(expr_str){
+  expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>%str_replace_all("\\}", "\\)")
+  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
+    warning("入力が有効な R 式ではありません")
+    return(NULL)
+  })
+  
+  expr
+  
+  # とにかく、絶対行列にする関数
+  sum2mat_convert <- function(expr,sum_var=NULL){
+    op <- as.character(expr[[1]])
+    if(op == "s"){
+      
+      # summation 2 matrixの対象
+      if(1){
+        sum_var <- expr[[3]][[2]]
+        result <- sum2mat_convert(expr[[2]], sum_var)
+        # expr <- expr[[2]]
+        return(result)
+      }else{
+        print("想定外です１")
+        return(deparse(expr))
+      }
+      return("これはsummation対象です。")
+    }else if(op %in% c("*", "+", "-")){
+      
+      yoso <- expr[-1]
+      # Mat_symbol_vec <- yoso %>% sapply(function(x) x [[2]])
+      # subv_mat <- yoso %>% sapply(function(x)x[-(1:2)] %>% as.character)
+      AAA <- yoso %>% sapply(function(x) sum2mat_convert(x))
+      Mat_symbol_vec <- AAA %>% sapply(function(x)x[[2]])
+      subv_mat <- AAA %>% sapply(function(x)x[-(1:2)] %>% as.character)
+      # subv <- subv_vec[,2]; Mat_symbol <- Mat_symbol_vec[2]
+      # operator <- op
+      result <- element2Matrix_2(subv_mat,Mat_symbol_vec, sum_var, op)
+      return(result)
+    }else if(op =="["){
+      return(expr)
+    }else{
+      print("想定外です２")
+      return(deparse(expr))
+    }
+  }
+  
+  result <- sum2mat_convert(expr)
+  
+  return(result)
+}
+
+element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, sum_var=NULL, operator = NULL){
+  
+  if(is.null(sum_var)){
+    
+    element_prod_sum <- function(Mat_symbol_vec_mod, subv_mat, operator){
+      operator_mat <- operator
+      if(operator_mat == "*") operator_mat <- "%@%"
+      result <- 
+        call("[",
+             call("(", call(operator_mat, Mat_symbol_vec_mod[[1]], Mat_symbol_vec_mod[[2]])),
+             as.symbol(subv_mat[1,1]),
+             as.symbol(subv_mat[2,1])
+        )
+      result
+    } 
+    
+    # 要素積、要素和(operator_mat定義済み)
+    if(all(subv_mat[,1]==subv_mat[,2])){
+      print("添え字の順が一致")
+      Mat_symbol_vec_mod <- Mat_symbol_vec
+      result <- element_prod_sum(Mat_symbol_vec_mod, subv_mat, operator)
+    }else if(all(subv_mat[,1]==rev(subv_mat[,2]))){
+      print("添え字の順が反対")
+      Mat_symbol_vec_mod <- Mat_symbol_vec
+      Mat_symbol_vec_mod[2] <- sprintf("t(%s)", Mat_symbol_vec_mod[2])
+      result <- element_prod_sum(Mat_symbol_vec_mod, subv_mat, operator)
+      
+      # その他
+    }else {
+      BBB <- 
+        sapply(1:2, function(i)
+          call("[",
+               Mat_symbol_vec[[i]],
+               as.symbol(subv_mat[1,i]),
+               as.symbol(subv_mat[2,i])
+          ))
+      result <- call(operator, BBB[[1]], BBB[[2]])
+      print("想定外です３")
+      return(result)
+    }
+    
+  }else{
+    sub_logical <- (subv_mat == sum_var)
+    
+    # 右行列と左行列で処理を反転させる
+    logic_flip <- list(function(x)x,function(x)!x) 
+    res <- list() 
+    for(i in 1:2){
+      if(logic_flip[[i]](all(sub_logical[,i] == c(TRUE, FALSE)))){
+        res[[i]] <- list(symbol = sprintf("t(%s)", deparse(Mat_symbol_vec[[i]])),
+                         subsc = subv_mat[!sub_logical[,i], i])
+      }else if(logic_flip[[i]](all(sub_logical[,i]== c(FALSE, TRUE)))){
+        res[[i]] <- list(symbol = Mat_symbol_vec[[i]],
+                         subsc = subv_mat[!sub_logical[,i], i])
+      }
+    }
+    result <- 
+      call("[",
+           call("(", call("%*%", res[[1]]$symbol, res[[2]]$symbol)),
+           as.symbol(res[[1]]$subsc),
+           as.symbol(res[[2]]$subsc)
+      )
+  }
+  return(result)
+}
+
+
