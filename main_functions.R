@@ -220,7 +220,11 @@ sum2mat <- function(expr_str){
       AAA <- yoso %>% lapply(function(x) sum2mat_convert(x))
       Mat_symbol_vec <- AAA %>% sapply(function(x)x[[2]])
       # subv_list <- AAA %>% sapply(function(x)x[-(1:2)] )
-      subv_list <- AAA %>% lapply(function(x)x[-(1:2)] %>% as.character)
+      subv_list <- AAA %>% lapply(function(x){
+        sapply(3:length(x), function(i){
+          x[[i]]
+        })
+      })
       # operator <- op
       result <- element2Matrix_2(subv_list,Mat_symbol_vec, sum_var, op)
       return(result)
@@ -253,16 +257,17 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
   if(is.null(sum_var)){
     
     # 要素積、要素和(operator_mat定義済み)
-    if(all(subv_list[[1]]==subv_list[[2]])){
+    
+    if(identical(subv_list[[1]], subv_list[[2]])){
       # print("添え字の順が一致")
       Mat_symbol_vec_mod <- Mat_symbol_vec
-      subv_list[[1]] <- subv_list[[1]] %>% sapply(as.symbol)
+      # subv_list[[1]] <- subv_list[[1]] %>% sapply(as.symbol)
       result <- element_prod_sum(Mat_symbol_vec_mod, subv_list[[1]], operator)
-    }else if(all(subv_list[[1]]==rev(subv_list[[2]]))){
+    }else if(identical(subv_list[[1]], rev(subv_list[[2]]))){
       # print("添え字の順が反対")
       Mat_symbol_vec_mod <- Mat_symbol_vec
       Mat_symbol_vec_mod[[2]] <- call("t", Mat_symbol_vec_mod[[2]])
-      subv_list[[1]] <- subv_list[[1]] %>% sapply(as.symbol)
+      # subv_list[[1]] <- subv_list[[1]] %>% sapply(as.symbol)
       result <- element_prod_sum(Mat_symbol_vec_mod, subv_list[[1]], operator)
       
       # その他
@@ -271,8 +276,8 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
         sapply(1:2, function(i)
           call("[",
                Mat_symbol_vec[[i]],
-               as.symbol(subv_list[[1]][1]),
-               as.symbol(subv_list[[1]][2])
+               as.symbol(subv_list[[i]][[1]]),
+               as.symbol(subv_list[[i]][[2]])
           ))
       result <- call(operator, BBB[[1]], BBB[[2]])
       print("想定外です３")
@@ -285,7 +290,7 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
     # if(all(sapply(subv_list, length) == 2)){
     if(1){
       subv_list; Mat_symbol_vec; sum_var; operator
-      sub_logical_list <- lapply(subv_list, function(subv)subv==sum_var)
+      sub_logical_list <- lapply(subv_list, function(subv)as.character(subv)==sum_var)
       
       # 右行列と左行列で処理を反転させる
       logic_flip <- list(function(x)x,function(x)!x) 
@@ -294,10 +299,10 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
         if(length(subv_list[[i]]) == 2){
           if(logic_flip[[i]](identical(sub_logical_list[[i]], c(TRUE, FALSE)))){
             res[[i]] <- list(symbol = call("t", Mat_symbol_vec[[i]]),
-                             subsc = subv_list[[i]][!sub_logical_list[[i]]]%>% as.symbol)
+                             subsc = subv_list[[i]][!sub_logical_list[[i]]])
           }else if(logic_flip[[i]](identical(sub_logical_list[[i]], c(FALSE, TRUE)))){
             res[[i]] <- list(symbol = Mat_symbol_vec[[i]],
-                             subsc = subv_list[[i]][!sub_logical_list[[i]]]%>% as.symbol)
+                             subsc = subv_list[[i]][!sub_logical_list[[i]]])
           }
         }else if(length(subv_list[[i]]) == 1){
           if(sub_logical_list[[i]]){
@@ -315,18 +320,12 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
         }
         if(length(res[[i]]$subsc) == 0)
           # res[[i]]$subsc <- quote(expr=) # [1,] の列引数に相当するexpression要素の作成
-          res[[i]]$subsc <- 1 # [1,] の列引数に相当するexpression要素の作成
+          res[[i]]$subsc <- list(1) # [1,] の列引数に相当するexpression要素の作成
         else
-          res[[i]]$subsc <- res[[i]]$subsc %>% as.symbol()
+          res[[i]]$subsc <- res[[i]]$subsc 
       } 
-      # result <- 
-      #   call("[",
-      #        call("(", call("%*%", res[[1]]$symbol, res[[2]]$symbol)),
-      #        res[[1]]$subsc,
-      #        res[[2]]$subsc
-      #   )
       result <- element_prod_sum(list(res[[1]]$symbol, res[[2]]$symbol),
-                                 list(res[[1]]$subsc, res[[2]]$subsc), 
+                                 list(res[[1]]$subsc[[1]], res[[2]]$subsc[[1]]), 
                                  "%*%")
     }else {
       print("想定外です４")
