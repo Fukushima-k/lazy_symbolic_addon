@@ -1,3 +1,5 @@
+library(tidyverse)
+
 to_latex <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE) {
   
@@ -197,13 +199,10 @@ sum2mat <- function(expr_str){
     return(NULL)
   })
   
-  expr
-  
   # とにかく、絶対行列にする関数
   sum2mat_convert <- function(expr,sum_var=NULL){
     op <- as.character(expr[[1]])
     if(op == "s"){
-      
       # summation 2 matrixの対象
       if(1){
         sum_var <- expr[[3]][[2]]
@@ -246,8 +245,8 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
     result <- 
       call("[",
            call("(", call(operator_mat, Mat_symbol_vec_mod[[1]], Mat_symbol_vec_mod[[2]])),
-           as.symbol(subv_new[[1]]),
-           as.symbol(subv_new[[2]]))
+           subv_new[[1]],
+           subv_new[[2]])
     result
   } 
   
@@ -257,8 +256,8 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
     if(all(subv_list[[1]]==subv_list[[2]])){
       # print("添え字の順が一致")
       Mat_symbol_vec_mod <- Mat_symbol_vec
-      result <- element_prod_sum(Mat_symbol_vec_mod, subv_list[[1]], operator)
       subv_list[[1]] <- subv_list[[1]] %>% sapply(as.symbol)
+      result <- element_prod_sum(Mat_symbol_vec_mod, subv_list[[1]], operator)
     }else if(all(subv_list[[1]]==rev(subv_list[[2]]))){
       # print("添え字の順が反対")
       Mat_symbol_vec_mod <- Mat_symbol_vec

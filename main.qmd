@@ -175,7 +175,6 @@ text_list <- list("S",
                   "t(bigA)",
                   "bigA%*%bigB",
                   "invbigA"
-                  
 )
 
 matrix_list <- list('A%*%ginv(t(A)%*%A)%*%t(A)')
