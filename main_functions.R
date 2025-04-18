@@ -175,14 +175,12 @@ sum2mat <- function(expr_str){
     }else if(op %in% c("*", "+", "-")){
       
       yoso <- expr[-1]
-      # Mat_symbol_vec <- yoso %>% sapply(function(x) x [[2]])
-      # subv_mat <- yoso %>% sapply(function(x)x[-(1:2)] %>% as.character)
-      AAA <- yoso %>% sapply(function(x) sum2mat_convert(x))
+      AAA <- yoso %>% lapply(function(x) sum2mat_convert(x))
       Mat_symbol_vec <- AAA %>% sapply(function(x)x[[2]])
-      subv_mat <- AAA %>% sapply(function(x)x[-(1:2)] %>% as.character)
-      # subv <- subv_vec[,2]; Mat_symbol <- Mat_symbol_vec[2]
+      # subv_list <- AAA %>% sapply(function(x)x[-(1:2)] )
+      subv_list <- AAA %>% lapply(function(x)x[-(1:2)] %>% as.character)
       # operator <- op
-      result <- element2Matrix_2(subv_mat,Mat_symbol_vec, sum_var, op)
+      result <- element2Matrix_2(subv_list,Mat_symbol_vec, sum_var, op)
       return(result)
     }else if(op =="["){
       return(expr)
@@ -197,32 +195,32 @@ sum2mat <- function(expr_str){
   return(result)
 }
 
-element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, sum_var=NULL, operator = NULL){
+element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator = NULL){
   
   if(is.null(sum_var)){
     
-    element_prod_sum <- function(Mat_symbol_vec_mod, subv_mat, operator){
+    element_prod_sum <- function(Mat_symbol_vec_mod, subv_list, operator){
       operator_mat <- operator
       if(operator_mat == "*") operator_mat <- "%@%"
       result <- 
         call("[",
              call("(", call(operator_mat, Mat_symbol_vec_mod[[1]], Mat_symbol_vec_mod[[2]])),
-             as.symbol(subv_mat[1,1]),
-             as.symbol(subv_mat[2,1])
+             as.symbol(subv_list[[1]][1]),
+             as.symbol(subv_list[[1]][2])
         )
       result
     } 
     
     # 要素積、要素和(operator_mat定義済み)
-    if(all(subv_mat[,1]==subv_mat[,2])){
+    if(all(subv_list[[1]]==subv_list[[2]])){
       print("添え字の順が一致")
       Mat_symbol_vec_mod <- Mat_symbol_vec
-      result <- element_prod_sum(Mat_symbol_vec_mod, subv_mat, operator)
-    }else if(all(subv_mat[,1]==rev(subv_mat[,2]))){
+      result <- element_prod_sum(Mat_symbol_vec_mod, subv_list, operator)
+    }else if(all(subv_list[[1]]==rev(subv_list[[2]]))){
       print("添え字の順が反対")
       Mat_symbol_vec_mod <- Mat_symbol_vec
       Mat_symbol_vec_mod[2] <- sprintf("t(%s)", Mat_symbol_vec_mod[2])
-      result <- element_prod_sum(Mat_symbol_vec_mod, subv_mat, operator)
+      result <- element_prod_sum(Mat_symbol_vec_mod, subv_list, operator)
       
       # その他
     }else {
@@ -230,8 +228,8 @@ element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, sum_var=NULL, operator = 
         sapply(1:2, function(i)
           call("[",
                Mat_symbol_vec[[i]],
-               as.symbol(subv_mat[1,i]),
-               as.symbol(subv_mat[2,i])
+               as.symbol(subv_list[[1]][1]),
+               as.symbol(subv_list[[1]][2])
           ))
       result <- call(operator, BBB[[1]], BBB[[2]])
       print("想定外です３")
@@ -239,18 +237,18 @@ element2Matrix_2 <- function(subv_mat, Mat_symbol_vec, sum_var=NULL, operator = 
     }
     
   }else{
-    sub_logical <- (subv_mat == sum_var)
+    sub_logical_list <- lapply(subv_list, function(subv)subv==sum_var)
     
     # 右行列と左行列で処理を反転させる
     logic_flip <- list(function(x)x,function(x)!x) 
     res <- list() 
     for(i in 1:2){
-      if(logic_flip[[i]](all(sub_logical[,i] == c(TRUE, FALSE)))){
-        res[[i]] <- list(symbol = sprintf("t(%s)", deparse(Mat_symbol_vec[[i]])),
-                         subsc = subv_mat[!sub_logical[,i], i])
-      }else if(logic_flip[[i]](all(sub_logical[,i]== c(FALSE, TRUE)))){
+      if(logic_flip[[i]](all(sub_logical_list[[i]] == c(TRUE, FALSE)))){
+        res[[i]] <- list(symbol = call("t", Mat_symbol_vec[[i]]),
+                         subsc = subv_list[[i]][!sub_logical_list[[i]]])
+      }else if(logic_flip[[i]](all(sub_logical_list[[i]]== c(FALSE, TRUE)))){
         res[[i]] <- list(symbol = Mat_symbol_vec[[i]],
-                         subsc = subv_mat[!sub_logical[,i], i])
+                         subsc = subv_list[[i]][!sub_logical_list[[i]]])
       }
     }
     result <- 
