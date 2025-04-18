@@ -1,4 +1,3 @@
-
 to_latex <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE) {
   
@@ -236,27 +235,57 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
       return(result)
     }
     
-  }else{
-    sub_logical_list <- lapply(subv_list, function(subv)subv==sum_var)
-    
-    # 右行列と左行列で処理を反転させる
-    logic_flip <- list(function(x)x,function(x)!x) 
-    res <- list() 
-    for(i in 1:2){
-      if(logic_flip[[i]](all(sub_logical_list[[i]] == c(TRUE, FALSE)))){
-        res[[i]] <- list(symbol = call("t", Mat_symbol_vec[[i]]),
-                         subsc = subv_list[[i]][!sub_logical_list[[i]]])
-      }else if(logic_flip[[i]](all(sub_logical_list[[i]]== c(FALSE, TRUE)))){
-        res[[i]] <- list(symbol = Mat_symbol_vec[[i]],
-                         subsc = subv_list[[i]][!sub_logical_list[[i]]])
-      }
+  # sum_varがある場合
+  }else {
+    ## 行列同士
+    # if(all(sapply(subv_list, length) == 2)){
+    if(1){
+      subv_list; Mat_symbol_vec; sum_var; operator
+      sub_logical_list <- lapply(subv_list, function(subv)subv==sum_var)
+      
+      # 右行列と左行列で処理を反転させる
+      logic_flip <- list(function(x)x,function(x)!x) 
+      res <- list() 
+      for(i in 1:2){
+        if(length(subv_list[[i]]) == 2){
+          if(logic_flip[[i]](identical(sub_logical_list[[i]], c(TRUE, FALSE)))){
+            res[[i]] <- list(symbol = call("t", Mat_symbol_vec[[i]]),
+                             subsc = subv_list[[i]][!sub_logical_list[[i]]])
+          }else if(logic_flip[[i]](identical(sub_logical_list[[i]], c(FALSE, TRUE)))){
+            res[[i]] <- list(symbol = Mat_symbol_vec[[i]],
+                             subsc = subv_list[[i]][!sub_logical_list[[i]]])
+          }
+        }else if(length(subv_list[[i]]) == 1){
+          if(sub_logical_list[[i]]){
+            if(i == 1)
+              symbol <- call("t", Mat_symbol_vec[[i]])
+            else
+              symbol <- Mat_symbol_vec[[i]]
+            res[[i]] <- list(symbol = symbol,
+                             subsc = subv_list[[i]][!sub_logical_list[[i]]])
+          }else {
+            stop("想定外です。6")
+          }
+        }else{
+          stop("想定外です。5")
+        }
+        if(length(res[[i]]$subsc) == 0)
+          # res[[i]]$subsc <- quote(expr=) # [1,] の列引数に相当するexpression要素の作成
+          res[[i]]$subsc <- "1" # [1,] の列引数に相当するexpression要素の作成
+      } 
+      result <- 
+        call("[",
+             call("(", call("%*%", res[[1]]$symbol, res[[2]]$symbol)),
+             as.symbol(res[[1]]$subsc),
+             as.symbol(res[[2]]$subsc)
+        )
+    }else {
+      
+      
+      
+      print("想定外です４")
+      return("想定外です４")
     }
-    result <- 
-      call("[",
-           call("(", call("%*%", res[[1]]$symbol, res[[2]]$symbol)),
-           as.symbol(res[[1]]$subsc),
-           as.symbol(res[[2]]$subsc)
-      )
   }
   return(result)
 }
