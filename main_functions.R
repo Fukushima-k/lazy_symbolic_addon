@@ -1,4 +1,5 @@
 library(tidyverse)
+library(lazy.symbolic)
 
 to_latex <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE) {
@@ -229,7 +230,28 @@ sum2mat <- function(expr_str){
       result <- element2Matrix_2(subv_list,Mat_symbol_vec, sum_var, op)
       return(result)
     }else if(op =="["){
-      return(expr)
+      if(is.null(sum_var)) {
+        return(expr)
+      }else{
+        print("かっこ通り、かつ、sum_var != nullだよ")
+        expr_new <- expr
+        for(i in 3:4){
+          if(expr_new[[i]] == sum_var){
+            expr_new[[i]] <- 1
+            sum_var_index <- i-2
+          }
+        }
+        if(sum_var_index == 1){
+          Mat_symbol <- call("t", expr[[2]])
+          expr_new[3:4] <- rev(expr_new[3:4])
+        }else{
+          Mat_symbol <- expr[[2]]
+        }
+        
+        expr_new[[2]] <- call("(", call("%*%", Mat_symbol, as.symbol("one")))
+        
+        return(expr_new)
+      }
     }else{
       print("想定外です２")
       return(deparse(expr))
@@ -269,6 +291,23 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
       Mat_symbol_vec_mod[[2]] <- call("t", Mat_symbol_vec_mod[[2]])
       # subv_list[[1]] <- subv_list[[1]] %>% sapply(as.symbol)
       result <- element_prod_sum(Mat_symbol_vec_mod, subv_list[[1]], operator)
+      
+      # 対角行列
+    }else if(subv_list[[1]][[1]]==subv_list[[1]][[2]] | 
+             subv_list[[2]][[1]]==subv_list[[2]][[2]]){
+      for(i in 1:2){
+        if(subv_list[[i]][[1]]==subv_list[[i]][[2]]){
+          if(which(subv_list[[-i]]== subv_list[[i]][[1]]) != i){
+            # 対角行列とは逆の行列の添え字が逆転しているか否か。
+            Mat_symbol_vec[[-i]] <- call("t", Mat_symbol_vec[[-i]])
+            subv_new<- rev(subv_list[[-i]])
+          }else{
+            subv_new<- subv_list[[-i]]
+          }
+          Mat_symbol_vec[[i]] <- call("diag", Mat_symbol_vec[[i]])
+        }
+      }
+      return(call("[", call("%*%", Mat_symbol_vec[[1]], Mat_symbol_vec[[2]]), subv_new[[1]], subv_new[[2]]))
       
       # その他
     }else {
