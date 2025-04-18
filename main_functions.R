@@ -7,7 +7,7 @@ to_latex <- function(expr_str, doller = TRUE,
   if(mat2sum||simple_mat2sum)
     expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
   
-  # 入力文字列を R の式にパース
+  # 入力文字列を R のexpressionとしてパース
   expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
     warning("入力が有効な R 式ではありません")
     return(NULL)
@@ -233,7 +233,7 @@ sum2mat <- function(expr_str){
       if(is.null(sum_var)) {
         return(expr)
       }else{
-        print("かっこ通り、かつ、sum_var != nullだよ")
+        # print("かっこ通り、かつ、sum_var != nullだよ")
         expr_new <- expr
         for(i in 3:4){
           if(expr_new[[i]] == sum_var){
@@ -319,7 +319,7 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
                as.symbol(subv_list[[i]][[2]])
           ))
       result <- call(operator, BBB[[1]], BBB[[2]])
-      print("想定外です３")
+      cat("想定外(想定内)")
       return(result)
     }
     
