@@ -212,13 +212,13 @@ element2Matrix_2 <- function(subv_list, Mat_symbol_vec, sum_var=NULL, operator =
     
     # 要素積、要素和(operator_mat定義済み)
     if(all(subv_list[[1]]==subv_list[[2]])){
-      print("添え字の順が一致")
+      # print("添え字の順が一致")
       Mat_symbol_vec_mod <- Mat_symbol_vec
       result <- element_prod_sum(Mat_symbol_vec_mod, subv_list, operator)
     }else if(all(subv_list[[1]]==rev(subv_list[[2]]))){
-      print("添え字の順が反対")
+      # print("添え字の順が反対")
       Mat_symbol_vec_mod <- Mat_symbol_vec
-      Mat_symbol_vec_mod[2] <- sprintf("t(%s)", Mat_symbol_vec_mod[2])
+      Mat_symbol_vec_mod[[2]] <- call("t", Mat_symbol_vec_mod[[2]])
       result <- element_prod_sum(Mat_symbol_vec_mod, subv_list, operator)
       
       # その他
