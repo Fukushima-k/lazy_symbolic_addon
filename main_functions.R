@@ -192,7 +192,6 @@ sum_move_in <- function(expr){
 
 # sum2mat -----------------------------------------------------------------
 
-
 sum2mat <- function(expr_str){
   expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>%str_replace_all("\\}", "\\)")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
@@ -219,105 +218,106 @@ sum2mat <- function(expr_str){
     }else if(op =="["){
       # a[i,j]
       
-      # UnOper_sum2mat
-      
-      if(is.null(sum_var)) {
-        return(expr)
-      }else{
-        # print("[] in summation")
-        expr_new <- expr
-        for(i in 3:4){
-          if(expr_new[[i]] == sum_var){
-            expr_new[[i]] <- 1
-            sum_var_index <- i-2
-          }
-        }
-        if(sum_var_index == 1){
-          Mat_symbol <- call("t", expr[[2]])
-          expr_new[3:4] <- rev(expr_new[3:4])
-        }else{
-          Mat_symbol <- expr[[2]]
-        }
-        
-        expr_new[[2]] <- call("(", call("%*%", Mat_symbol, as.symbol("one")))
-        
-        return(expr_new)
-      }
+      result <- sq_brackets_sum2mat(expr, sum_var)
+      return(result)
+
     }else{
       print("素通りさせます。")
       return(expr)
     }
   }
   
-  return(sum2mat_convert(expr))
-}
-
-BinOper_sum2mat <- function(expr, sum_var=NULL){
-  operator <- as.character(expr[[1]])
-  arguments_BinOperator <- expr[-1] %>% lapply(function(x) sum2mat_convert(x))
-  Mat_symbol_list <- arguments_BinOperator %>% sapply(function(x)x[[2]])
-  sublist_list <- arguments_BinOperator %>% lapply(function(x){
-    sapply(3:length(x), function(i){
-      x[[i]]
-    })
-  })
-  
-  BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
-    operator_mat <- operator
-    if(operator_mat == "*") operator_mat <- "%@%"
-    result <- 
-      call("[",
-           call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
-           sublist_new[[1]],
-           sublist_new[[2]])
-    result
-  } 
-  
-  if(is.null(sum_var)){
-    
-    # 要素積、要素和(operator_mat定義済み)
-    
-    if(identical(sublist_list[[1]], sublist_list[[2]])){
-      # print("添え字の順が一致")
-      Mat_symbol_list_mod <- Mat_symbol_list
-      result <- BinOper_unify(Mat_symbol_list_mod, sublist_list[[1]], operator)
-    }else if(identical(sublist_list[[1]], rev(sublist_list[[2]]))){
-      # print("添え字の順が反対")
-      Mat_symbol_list_mod <- Mat_symbol_list
-      Mat_symbol_list_mod[[2]] <- call("t", Mat_symbol_list_mod[[2]])
-      result <- BinOper_unify(Mat_symbol_list_mod, sublist_list[[1]], operator)
-      
-      # 対角行列
-    }else if(sublist_list[[1]][[1]]==sublist_list[[1]][[2]] | 
-             sublist_list[[2]][[1]]==sublist_list[[2]][[2]]){
-      for(i in 1:2){
-        if(sublist_list[[i]][[1]]==sublist_list[[i]][[2]]){
-          if(which(sublist_list[[-i]]== sublist_list[[i]][[1]]) != i){
-            # 対角行列とは逆の行列の添え字が逆転しているか否か。
-            Mat_symbol_list[[-i]] <- call("t", Mat_symbol_list[[-i]])
-            sublist_new<- rev(sublist_list[[-i]])
-          }else{
-            sublist_new<- sublist_list[[-i]]
-          }
-          Mat_symbol_list[[i]] <- call("diag", Mat_symbol_list[[i]])
+  sq_brackets_sum2mat <- function(expr, sum_var = NULL){
+    if(is.null(sum_var)) {
+      return(expr)
+    }else{
+      # print("[] in summation")
+      expr_new <- expr
+      for(i in 3:4){
+        if(expr_new[[i]] == sum_var){
+          expr_new[[i]] <- 1
+          sum_var_index <- i-2
         }
       }
-      return(BinOper_unify(Mat_symbol_list, sublist_new, "%*%"))
-
-    # その他
-    }else {
-      expr[[2]] <- arguments_BinOperator[[1]]
-      expr[[3]] <- arguments_BinOperator[[2]]
-      cat("想定外(想定内)（素通り）")
-      return(expr)
+      if(sum_var_index == 1){
+        Mat_symbol <- call("t", expr[[2]])
+        expr_new[3:4] <- rev(expr_new[3:4])
+      }else{
+        Mat_symbol <- expr[[2]]
+      }
+      
+      expr_new[[2]] <- call("(", call("%*%", Mat_symbol, as.symbol("one")))
+      
+      return(expr_new)
     }
+  }
+  
+  BinOper_sum2mat <- function(expr, sum_var=NULL){
+    operator <- as.character(expr[[1]])
+    arguments_BinOperator <- expr[-1] %>% lapply(function(x) sum2mat_convert(x))
+    Mat_symbol_list <- arguments_BinOperator %>% sapply(function(x)x[[2]])
+    sublist_list <- arguments_BinOperator %>% lapply(function(x){
+      sapply(3:length(x), function(i){
+        x[[i]]
+      })
+    })
     
-  # sum_varがある場合
-  }else {
-    ## 行列同士
-    # if(all(sapply(sublist_list, length) == 2)){
-    # if(1){
-      sublist_list; Mat_symbol_list; sum_var; operator
+    BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
+      operator_mat <- operator
+      if(operator_mat == "*") operator_mat <- "%@%"
+      result <- 
+        call("[",
+             call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
+             sublist_new[[1]],
+             sublist_new[[2]])
+      result
+    } 
+    
+    if(is.null(sum_var)){
+      
+      # 要素積、要素和(operator_mat定義済み)
+      Mat_symbol_list_mod <- Mat_symbol_list %>% lapply(function(x){
+        # 余計なかっこ()の削除
+        if(as.character(x)[1]=="[") x[[2]] else x
+      })
+      if(identical(sublist_list[[1]], sublist_list[[2]])){
+        # print("添え字の順が一致")
+        return(BinOper_unify(Mat_symbol_list_mod, sublist_list[[1]], operator))
+      }else if(identical(sublist_list[[1]], rev(sublist_list[[2]]))){
+        # print("添え字の順が反対")
+        Mat_symbol_list_mod[[2]] <- call("t", Mat_symbol_list_mod[[2]])
+        return(BinOper_unify(Mat_symbol_list_mod, sublist_list[[1]], operator))
+        
+        # 対角行列
+      }else if(sublist_list[[1]][[1]]==sublist_list[[1]][[2]] | 
+               sublist_list[[2]][[1]]==sublist_list[[2]][[2]]){
+        for(i in 1:2){
+          if(sublist_list[[i]][[1]]==sublist_list[[i]][[2]]){
+            if(which(sublist_list[[-i]]== sublist_list[[i]][[1]]) != i){
+              # 対角行列とは逆の行列の添え字が逆転しているか否か。
+              Mat_symbol_list[[-i]] <- call("t", Mat_symbol_list[[-i]])
+              sublist_new<- rev(sublist_list[[-i]])
+            }else{
+              sublist_new<- sublist_list[[-i]]
+            }
+            Mat_symbol_list[[i]] <- call("diag", Mat_symbol_list[[i]])
+          }
+        }
+        return(BinOper_unify(Mat_symbol_list, sublist_new, "%*%"))
+        
+        # その他
+      }else {
+        expr[[2]] <- arguments_BinOperator[[1]]
+        expr[[3]] <- arguments_BinOperator[[2]]
+        cat("想定外(想定内)（素通り）")
+        return(expr)
+      }
+      
+      # sum_varがある場合
+    }else {
+      ## 行列同士
+      # if(all(sapply(sublist_list, length) == 2)){
+      # sublist_list; Mat_symbol_list; sum_var; operator
       sub_logical_list <- lapply(sublist_list, function(sublist)as.character(sublist)==sum_var)
       
       # 右行列と左行列で処理を反転させる
@@ -348,10 +348,14 @@ BinOper_sum2mat <- function(expr, sum_var=NULL){
       }
       result <- BinOper_unify(Mat_symbol_list_mod,
                               lapply(sublist_new,function(x)x[[1]]), 
-                                 "%*%")
-    # }
+                              "%*%")
+    }
+    return(result)
   }
-  return(result)
+  
+  return(sum2mat_convert(expr))
 }
+
+
 
 
