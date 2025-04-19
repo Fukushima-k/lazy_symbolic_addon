@@ -1,5 +1,7 @@
 source("main_functions.R")
-# testthat::test_file("test_sum2mat.R")
+if(0){
+  testthat::test_file("test_sum2mat.R")
+}
 
 
 # sum over k
