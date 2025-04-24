@@ -3,11 +3,16 @@ library(lazy.symbolic)
 
 to_latex <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
-                     print_html = FALSE) {
+                     print_html = FALSE, use_tidyverse = TRUE) {
   save_expr_str <- expr_str
   
-  if(mat2sum||simple_mat2sum)
-    expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
+  if(mat2sum||simple_mat2sum){
+    if(use_tidyverse)
+      expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
+    else
+      expr_str <- gsub("}", ")", gsub("{", "chu_kakko(", expr_str, fixed = TRUE), fixed = TRUE)
+  }
+    
   
   # 入力文字列を R のexpressionとしてパース
   expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
@@ -53,13 +58,13 @@ to_latex <- function(expr_str, doller = TRUE,
           return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
           # return(paste0(e[[2]], " \\cdot ", e[[3]]))
         }else if(e[[1]] == "["){
-          subscripts_elements <- e %>% as.character()
-          return(paste0(subscripts_elements[2], "_{", subscripts_elements[-(1:2)] %>% paste(collapse = ","), "}"))
+          subscripts_elements <- as.character(e)
+          return(paste0(subscripts_elements[2], "_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
         }else if((op %in% c("nrow", "ncol"))){
           if(simple_mat2sum)
             return(eval(e))
           else 
-            return(paste0(op %>% str_sub(2,2), "(", rec_convert(e[[2]]), ")"))
+            return(paste0(substr(op, 2, 2), "(", rec_convert(e[[2]]), ")"))
         }
       }
       
@@ -110,12 +115,25 @@ to_latex <- function(expr_str, doller = TRUE,
   
   if(simple_mat2sum){
     # gsub() の replacement に関数を渡す方法
+    if(use_tidyverse){
       expr <- expr %>% 
         str_replace_all("s1", "k") %>% 
         str_replace_all("s2", "l") %>% 
         str_replace_all("s3", "m") %>% 
         str_replace_all("s4", "n") %>% 
         str_replace_all("s5", "o")
+    }else{
+      expr <- c("s1 test s2 string", "another s3 and s4 test s5")
+      
+      # 置換ルールの定義 (パターンと置換後の文字列のペア)
+      patterns <- c("s1", "s2", "s3", "s4", "s5")
+      replacements <- c("k", "l", "m", "n", "o")
+      
+      # ループで順番に gsub を適用
+      for (i in seq_along(patterns)) {
+        expr <- gsub(patterns[i], replacements[i], expr, fixed = TRUE)
+      }
+    }
   }
   
   # subscriptの処理
@@ -154,7 +172,10 @@ to_tex_matrix <- function(df, type =c("matrix"), print_html = FALSE) {
 
 
 print_tex_as_html <- function(TeX_code, input){
-  library(htmltools)
+  if(!require(htmltools)){
+    stop("package 'htmltools' is required for print_tex_as_html()")
+  }
+  
   
   if(missing(input)) input <- ""
   
