@@ -192,7 +192,8 @@ sum_move_in <- function(expr){
 
 # sum2mat -----------------------------------------------------------------
 
-sum2mat <- function(expr_str){
+
+sum2mat <- function(expr_str, deparse_result = FALSE){
   expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>%str_replace_all("\\}", "\\)")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
     warning("入力が有効な R 式ではありません")
@@ -265,12 +266,10 @@ sum2mat <- function(expr_str){
     BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
       operator_mat <- operator
       if(operator_mat == "*") operator_mat <- "%@%"
-      result <- 
-        call("[",
-             call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
-             sublist_new[[1]],
-             sublist_new[[2]])
-      result
+      call("[",
+           call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
+           sublist_new[[1]],
+           sublist_new[[2]])
     } 
     
     if(is.null(sum_var)){
@@ -353,7 +352,11 @@ sum2mat <- function(expr_str){
     return(result)
   }
   
-  return(sum2mat_convert(expr))
+  expr_result <- sum2mat_convert(expr)
+  if(deparse_result)
+    expr_result <- deparse(expr_result)
+  
+  return(expr_result)
 }
 
 
