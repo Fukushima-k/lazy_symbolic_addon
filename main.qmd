@@ -154,6 +154,11 @@ Print(S)
 to_tex_matrix(S) %>% cat()
 ```
 
+```{r}
+# Rstudio上であれば、Viewerで表示できる。
+to_tex_matrix(S, print_html = TRUE)
+```
+
 
 
 

@@ -2,7 +2,9 @@ library(tidyverse)
 library(lazy.symbolic)
 
 to_latex <- function(expr_str, doller = TRUE,
-                     mat2sum = FALSE, simple_mat2sum = FALSE) {
+                     mat2sum = FALSE, simple_mat2sum = FALSE,
+                     print_html = FALSE) {
+  save_expr_str <- expr_str
   
   if(mat2sum||simple_mat2sum)
     expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
@@ -123,16 +125,17 @@ to_latex <- function(expr_str, doller = TRUE,
   
  
   
-  if(doller){
+  if(doller|print_html){
     expr <- paste0("$$", expr, "$$")
   }
   # 変換結果を返す
+  if(print_html) print_tex_as_html(expr, save_expr_str)
   return(expr)
 }
 
 
 
-to_tex_matrix <- function(df, type =c("matrix")) {
+to_tex_matrix <- function(df, type =c("matrix"), print_html = FALSE) {
   type = match.arg(type)
   
   if(type == "matrix"){
@@ -143,9 +146,42 @@ to_tex_matrix <- function(df, type =c("matrix")) {
     tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
     tex_code <- paste0("\\begin{bmatrix}\n", tex_code, "\n\\end{bmatrix}")
     
+    if(print_html) print_tex_as_html(tex_code)
     return(tex_code)
   }
 }
+
+
+
+print_tex_as_html <- function(TeX_code, input){
+  library(htmltools)
+  
+  if(missing(input)) input <- ""
+  
+  Ps <- NULL
+  for(i in seq_along(TeX_code)){
+    Ps[[i]]  <- p(sprintf("%s%s", input[[i]], TeX_code[[i]]))
+  }
+  # Ps <- map2(input, output, function(x,y)p(x,y))
+  
+  html_math <- tags$html(
+    tags$head(
+      tags$script(src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
+    ),
+    do.call(tags$body, Ps)
+    # tags$body(
+    #   # h2("MathJax Test in HTML"),
+    #   # p("Inline TeX: ", HTML("\\( a^2 + b^2 = c^2 \\)")),
+    #   p("Result: ", HTML(TeX_code))
+    # )
+  )
+  
+  # View()の代わりにブラウザで表示（HTMLレンダリングされる）
+  html_print(html_math)
+}
+
+
+
 
 
 if(0)expr_str <- "s( a[i,j]*b[j,k]*c[k,l], {k})"
