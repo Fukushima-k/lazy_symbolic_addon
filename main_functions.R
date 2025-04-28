@@ -299,6 +299,18 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
   
   # とにかく、絶対行列にする関数
   sum2mat_convert <- function(expr, sum_var=NULL){
+    
+    if (is.symbol(expr)) {
+      # 変数名の場合
+      # 変数名を LaTeX のコマンドに変換 (tuika)
+      expr <- return(expr)
+      if(expr %in% chars)
+        return(paste0("\\", expr))
+      else
+        return(expr)
+    } else if (is.numeric(expr)) {
+      return(expr)
+    } else if (is.call(expr)) {
     op <- as.character(expr[[1]])
     if(op == "s"){
       # s( **** , {i})
@@ -311,7 +323,10 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
       # a[i,j] + b[j,k]
       # a[i,j] - b[j,k]
       
-      result <- BinOper_sum2mat(expr, sum_var)
+      if(length(expr) == 3)
+        result <- BinOper_sum2mat(expr, sum_var)
+      else
+        result <- call(op, sum2mat_convert(expr[[2]], sum_var))
       return(result)
     }else if(op =="["){
       # a[i,j]
@@ -322,6 +337,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
     }else{
       print("素通りさせます。")
       return(expr)
+    }
     }
   }
   
@@ -353,12 +369,34 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
   BinOper_sum2mat <- function(expr, sum_var=NULL){
     operator <- as.character(expr[[1]])
     arguments_BinOperator <- expr[-1] |> lapply(function(x) sum2mat_convert(x))
-    Mat_symbol_list <- arguments_BinOperator |> sapply(function(x)x[[2]])
-    sublist_list <- arguments_BinOperator |> lapply(function(x){
-      sapply(3:length(x), function(i){
-        x[[i]]
-      })
-    })
+    Mat_symbol_list <- sublist_list <- NULL
+    for(i in 1:2){
+      op_temp <- as.character(arguments_BinOperator[[i]][[1]])
+      if(op_temp == "["){
+        Mat_symbol_list[[i]] <- arguments_BinOperator[[i]][[2]]
+        x <- arguments_BinOperator[[i]]
+        sublist_list[[i]] <-  
+          sapply(3:length(x), function(i){
+            x[[i]]
+          })
+      }else if(op_temp %in% c("-", "+")){
+        root <- arguments_BinOperator[[i]][[2]]
+        Mat_symbol_list[[i]] <- call(op_temp, root[[2]])
+        x <- root
+        sublist_list[[i]] <-  
+          sapply(3:length(x), function(i){
+            x[[i]]
+          })
+      }else{
+        stop("エラー")
+      }
+    }
+    # Mat_symbol_list <- arguments_BinOperator |> sapply(function(x)x[[2]])
+    # sublist_list <- arguments_BinOperator |> lapply(function(x){
+    #   sapply(3:length(x), function(i){
+    #     x[[i]]
+    #   })
+    # })
     
     BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
       operator_mat <- operator
