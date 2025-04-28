@@ -127,8 +127,6 @@ options(pcre.recursion_limit = 5)
         - 要素ごとにLatex記法に変換する関数
         - mat2sum = TRUEにすると、総和記号による表記もLaTeX記法に変換できる。
         - simple_mat2sum = TRUEにすると、さらにシンプルな表記になる。
-    - to_tex_matrix()
-        - 行列ごとLatex記法に変換する関数
 - 使い方
     - 変換したい当該オブジェクトを引数に上記関数を使用すると、Latex記法の文字列が返ってくる。
     - QuartoのRチャンクにおいて、チャンクオプションをresults:"asis"にすると、Rの返した結果をmarkdown上に直接記述されたものと解釈してコンパイルできる。
@@ -151,12 +149,12 @@ Print(S)
 #| results: "asis"
 
 # チャンクオプションとして、#| results: "asis"を使用
-to_tex_matrix(S) %>% cat()
+to_latex(S) %>% cat()
 ```
 
 ```{r}
 # Rstudio上であれば、Viewerで表示できる。
-to_tex_matrix(S, print_html = TRUE)
+to_latex(S, print_html = TRUE)
 ```
 
 
@@ -187,7 +185,8 @@ matrix_list <- list('A%*%ginv(t(A)%*%A)%*%t(A)')
 mat2sum_list <- list('mat2sum( "A + B", simple=0 )',
                      'mat2sum("t(v) %*% S %*% v", root="k",simple=0)',
                      'mat2sum("diag(D1)%*%A%*%diag(D2)")',
-                     'mat2sum("t(f)%*%A%*%t(B)%*%C%*%Diag(D)%*%t(E)")')
+                     'mat2sum("t(f)%*%A%*%t(B)%*%C%*%Diag(D)%*%t(E)")',
+                     'sum2mat(mat2sum("A%*%B + C"))')
 ```
 
 
@@ -208,7 +207,7 @@ for (text_i in seq_along(text_list)) {
   # 子チャンク2: asis出力で Markdown 見出しと LaTeX 数式を出力
   child_chunk2 <- paste0(
     "```{r, results='asis', echo=FALSE}\n",
-    "cat(to_tex_matrix(", text, "))\n",
+    "cat(to_latex(", text, "))\n",
     "```\n"
   )
 
@@ -284,6 +283,9 @@ for (text_i in seq_along(mat2sum_list)) {
 ```
 
 
+```{r}
+"(A%*%B)[i,j]+C[i,j]"
+```
 
 
 

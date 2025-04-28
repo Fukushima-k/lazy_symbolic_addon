@@ -5,25 +5,30 @@ str_replace_all <- function( string, pattern, replacement ){
   gsub( pattern, replacement, string )
 }
 
-to_latex <- function(expr_str, doller = TRUE,
+to_latex_core <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
                      print_html = FALSE, use_tidyverse = TRUE) {
-  save_expr_str <- expr_str
-  
-  if(mat2sum||simple_mat2sum){
-    if(use_tidyverse)
-      expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
-    else
-      expr_str <- gsub("}", ")", gsub("{", "chu_kakko(", expr_str, fixed = TRUE), fixed = TRUE)
+  if(is.call(expr_str)){
+    save_expr_str <- deparse(expr_str)
+    expr <- expr_str
+  }else{
+    save_expr_str <- expr_str
+    
+    if(mat2sum||simple_mat2sum){
+      if(use_tidyverse)
+        expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
+      else
+        expr_str <- gsub("}", ")", gsub("{", "chu_kakko(", expr_str, fixed = TRUE), fixed = TRUE)
+    }
+    
+    # 入力文字列を R のexpressionとしてパース
+    expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+    if (is.null(expr)) return(expr_str)
   }
   
-  
-  # 入力文字列を R のexpressionとしてパース
-  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
-    warning("入力が有効な R 式ではありません")
-    return(NULL)
-  })
-  if (is.null(expr)) return(expr_str)
   
   op_supsc <- c("t", "T", "ginv", "inv")
   supsc <- c("T", "T", "-", "-1")
@@ -51,19 +56,25 @@ to_latex <- function(expr_str, doller = TRUE,
       op <- as.character(e[[1]])
       
       if(mat2sum||simple_mat2sum){
-        if(e[[1]] == "s"){
+        if(op == "s"){
           # sum_scripts <- e[[3]] |> as.character()
           ss <- e[[3]]  # sum_scripts
           if(length(ss) <= 2)
             return(paste0("\\sum_{", rec_convert(ss[[2]]), "}", rec_convert(e[[2]])))
           else
             return(paste0("\\sum_{", rec_convert(ss[[2]]), "=",rec_convert(ss[[3]]), "}^{", rec_convert(ss[[4]]), "}", rec_convert(e[[2]])))
-        }else if(e[[1]] == "*"){
+        }else if(op == "*"){
           return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
           # return(paste0(e[[2]], " \\cdot ", e[[3]]))
-        }else if(e[[1]] == "["){
+        }else if(op == "["){
           subscripts_elements <- as.character(e)
-          return(paste0(subscripts_elements[2], "_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
+          if(is.call(e[[2]])){
+            return(paste0("(", rec_convert(e[[2]]), ")_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
+          }else{
+            return(paste0(rec_convert(e[[2]]), "_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
+          }
+        }else if(op == "+"){
+          return(paste0(rec_convert(e[[2]]), "+", rec_convert(e[[3]])))
         }else if((op %in% c("nrow", "ncol"))){
           if(simple_mat2sum)
             return(eval(e))
@@ -99,6 +110,8 @@ to_latex <- function(expr_str, doller = TRUE,
         return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
       } else if (op %in% op_supsc) {
         return(paste0("{", rec_convert(e[[2]]), "}^{", supsc[op == op_supsc], "}"))
+      }else if(op == "["){
+        stop("作成中。mat2sumの場合はmat2sum=TRUEにして実行してください。")
         
         # 追加終了
         
@@ -157,12 +170,29 @@ to_latex <- function(expr_str, doller = TRUE,
 
 
 
-to_tex_matrix <- function(df, type =c("matrix"), print_html = FALSE) {
-  type = match.arg(type)
+# to_tex_matrix <- function(df, type =c("matrix"), print_html = FALSE) {
+#   type = match.arg(type)
+#   
+#   if(type == "matrix"){
+#     # データフレームの各要素を変換
+#     tex_matrix <- apply(df, c(1,2), to_latex_core, doller = FALSE)
+#     
+#     # 行列を LaTeX の bmatrix 形式で構築
+#     tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
+#     tex_code <- paste0("\\begin{bmatrix}\n", tex_code, "\n\\end{bmatrix}")
+#     
+#     if(print_html) print_tex_as_html(tex_code)
+#     return(tex_code)
+#   }
+# }
+
+to_latex <- function(expr_str, doller = TRUE,
+                     mat2sum = FALSE, simple_mat2sum = FALSE,
+                     print_html = FALSE, use_tidyverse = TRUE){
   
-  if(type == "matrix"){
+  if(is.matrix(expr_str)){
     # データフレームの各要素を変換
-    tex_matrix <- apply(df, c(1,2), to_latex, doller = FALSE)
+    tex_matrix <- apply(expr_str, c(1,2), to_latex_core, doller = FALSE)
     
     # 行列を LaTeX の bmatrix 形式で構築
     tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
@@ -170,9 +200,15 @@ to_tex_matrix <- function(df, type =c("matrix"), print_html = FALSE) {
     
     if(print_html) print_tex_as_html(tex_code)
     return(tex_code)
+  }else{
+    return(to_latex_core(expr_str, 
+                         doller=doller, 
+                         mat2sum = mat2sum,
+                         simple_mat2sum = simple_mat2sum,
+                         print_html = print_html,
+                         use_tidyverse = use_tidyverse))
   }
 }
-
 
 
 print_tex_as_html <- function(TeX_code, input){
