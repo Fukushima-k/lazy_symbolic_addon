@@ -1,5 +1,9 @@
-library(tidyverse)
+# library(tidyverse)
 library(lazy.symbolic)
+
+str_replace_all <- function( string, pattern, replacement ){
+  gsub( pattern, replacement, string )
+}
 
 to_latex <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
@@ -8,11 +12,11 @@ to_latex <- function(expr_str, doller = TRUE,
   
   if(mat2sum||simple_mat2sum){
     if(use_tidyverse)
-      expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
+      expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
     else
       expr_str <- gsub("}", ")", gsub("{", "chu_kakko(", expr_str, fixed = TRUE), fixed = TRUE)
   }
-    
+  
   
   # 入力文字列を R のexpressionとしてパース
   expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
@@ -24,18 +28,18 @@ to_latex <- function(expr_str, doller = TRUE,
   op_supsc <- c("t", "T", "ginv", "inv")
   supsc <- c("T", "T", "-", "-1")
   
-  chars <- c("theta", "alpha", "beta", "gamma", "delta", "epsilon", 
-             "zeta", "eta", "theta", "iota", "kappa", "lambda", 
-             "mu", "nu", "xi", "omicron", "pi", "rho", 
-             "sigma", "tau", "upsilon", "phi", "chi", 
+  chars <- c("theta", "alpha", "beta", "gamma", "delta", "epsilon",
+             "zeta", "eta", "theta", "iota", "kappa", "lambda",
+             "mu", "nu", "xi", "omicron", "pi", "rho",
+             "sigma", "tau", "upsilon", "phi", "chi",
              "psi", "omega")
   
   # 再帰的に式を LaTeX 文字列に変換する内部関数
   rec_convert <- function(e) {
     if (is.symbol(e)) {
-      # 変数名の場合 
+      # 変数名の場合
       # 変数名を LaTeX のコマンドに変換 (tuika)
-      e <- as.character(e) 
+      e <- as.character(e)
       if(e %in% chars)
         return(paste0("\\", e))
       else
@@ -48,7 +52,7 @@ to_latex <- function(expr_str, doller = TRUE,
       
       if(mat2sum||simple_mat2sum){
         if(e[[1]] == "s"){
-          # sum_scripts <- e[[3]] %>% as.character()
+          # sum_scripts <- e[[3]] |> as.character()
           ss <- e[[3]]  # sum_scripts
           if(length(ss) <= 2)
             return(paste0("\\sum_{", rec_convert(ss[[2]]), "}", rec_convert(e[[2]])))
@@ -63,7 +67,7 @@ to_latex <- function(expr_str, doller = TRUE,
         }else if((op %in% c("nrow", "ncol"))){
           if(simple_mat2sum)
             return(eval(e))
-          else 
+          else
             return(paste0(substr(op, 2, 2), "(", rec_convert(e[[2]]), ")"))
         }
       }
@@ -86,25 +90,25 @@ to_latex <- function(expr_str, doller = TRUE,
       } else if (op == "^") {
         # 累乗：a ^ b を {a}^{b} に変換
         return(paste0("{", rec_convert(e[[2]]), "}^{", rec_convert(e[[3]]), "}"))
-
-      # 追加開始
+        
+        # 追加開始
       } else if (op == "(") {
         # 括弧：() を \left( \right) に変換
         return(paste0("\\left(", rec_convert(e[[2]]), "\\right)"))
-      } else if (op == "%*%") {  
+      } else if (op == "%*%") {
         return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
       } else if (op %in% op_supsc) {
         return(paste0("{", rec_convert(e[[2]]), "}^{", supsc[op == op_supsc], "}"))
         
-      # 追加終了
-      
+        # 追加終了
+        
       } else {
         # 関数呼び出しの場合（例: sqrt, sin, cos など）
         fun_name <- op
         args <- sapply(as.list(e[-1]), rec_convert)
         # 一般には \fun{arg1, arg2, ...} 形式にする（必要に応じて書式を調整）
         return(paste0("\\", fun_name, "{", paste(args, collapse = ", "), "}"))
-      } 
+      }
     } else {
       # その他のケースは deparse して返す
       return(paste(deparse(e), collapse = " "))
@@ -116,11 +120,11 @@ to_latex <- function(expr_str, doller = TRUE,
   if(simple_mat2sum){
     # gsub() の replacement に関数を渡す方法
     if(use_tidyverse){
-      expr <- expr %>% 
-        str_replace_all("s1", "k") %>% 
-        str_replace_all("s2", "l") %>% 
-        str_replace_all("s3", "m") %>% 
-        str_replace_all("s4", "n") %>% 
+      expr <- expr |>
+        str_replace_all("s1", "k") |>
+        str_replace_all("s2", "l") |>
+        str_replace_all("s3", "m") |>
+        str_replace_all("s4", "n") |>
         str_replace_all("s5", "o")
     }else{
       expr <- c("s1 test s2 string", "another s3 and s4 test s5")
@@ -141,7 +145,7 @@ to_latex <- function(expr_str, doller = TRUE,
   # expr <- gsub("([a-zA-Z]+)([0-9]+)", "\\1_{\\2}", expr)
   expr <- gsub("(?<!_)([A-Za-z]+)([0-9]+)(?!}_)", "{\\1_{\\2}}", expr, perl = TRUE)
   
- 
+  
   
   if(doller|print_html){
     expr <- paste0("$$", expr, "$$")
@@ -208,7 +212,7 @@ print_tex_as_html <- function(TeX_code, input){
 if(0)expr_str <- "s( a[i,j]*b[j,k]*c[k,l], {k})"
 sum_move_in <- function(expr){
   # if(mat2sum||simple_mat2sum)
-  expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>% str_replace_all("\\}", "\\)")
+  expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
   
   # 入力文字列を R の式にパース
   expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
@@ -220,9 +224,9 @@ sum_move_in <- function(expr){
   converter <- function(e){
     
     if (is.symbol(e)) {
-      # 変数名の場合 
+      # 変数名の場合
       # 変数名を LaTeX のコマンドに変換 (tuika)
-      e <- as.character(e) 
+      e <- as.character(e)
       if(e %in% chars)
         return(paste0("\\", e))
       else
@@ -239,7 +243,7 @@ sum_move_in <- function(expr){
           
         }
         
-        e[[2]] 
+        e[[2]]
       }
       
     }
@@ -251,7 +255,7 @@ sum_move_in <- function(expr){
 
 
 sum2mat <- function(expr_str, deparse_result = FALSE){
-  expr_str <- expr_str %>%str_replace_all("\\{", "chu_kakko\\(") %>%str_replace_all("\\}", "\\)")
+  expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
     warning("入力が有効な R 式ではありません")
     return(NULL)
@@ -267,9 +271,9 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
       return(sum2mat_convert(expr[[2]], sum_var))
       
     }else if(op %in% c("*", "+", "-")){
-      # a[i,j] * b[j,k] 
-      # a[i,j] + b[j,k] 
-      # a[i,j] - b[j,k] 
+      # a[i,j] * b[j,k]
+      # a[i,j] + b[j,k]
+      # a[i,j] - b[j,k]
       
       result <- BinOper_sum2mat(expr, sum_var)
       return(result)
@@ -278,7 +282,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
       
       result <- sq_brackets_sum2mat(expr, sum_var)
       return(result)
-
+      
     }else{
       print("素通りさせます。")
       return(expr)
@@ -312,9 +316,9 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
   
   BinOper_sum2mat <- function(expr, sum_var=NULL){
     operator <- as.character(expr[[1]])
-    arguments_BinOperator <- expr[-1] %>% lapply(function(x) sum2mat_convert(x))
-    Mat_symbol_list <- arguments_BinOperator %>% sapply(function(x)x[[2]])
-    sublist_list <- arguments_BinOperator %>% lapply(function(x){
+    arguments_BinOperator <- expr[-1] |> lapply(function(x) sum2mat_convert(x))
+    Mat_symbol_list <- arguments_BinOperator |> sapply(function(x)x[[2]])
+    sublist_list <- arguments_BinOperator |> lapply(function(x){
       sapply(3:length(x), function(i){
         x[[i]]
       })
@@ -327,12 +331,12 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
            call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
            sublist_new[[1]],
            sublist_new[[2]])
-    } 
+    }
     
     if(is.null(sum_var)){
       
       # 要素積、要素和(operator_mat定義済み)
-      Mat_symbol_list_mod <- Mat_symbol_list %>% lapply(function(x){
+      Mat_symbol_list_mod <- Mat_symbol_list |> lapply(function(x){
         # 余計なかっこ()の削除
         if(as.character(x)[1]=="[") x[[2]] else x
       })
@@ -345,7 +349,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
         return(BinOper_unify(Mat_symbol_list_mod, sublist_list[[1]], operator))
         
         # 対角行列
-      }else if(sublist_list[[1]][[1]]==sublist_list[[1]][[2]] | 
+      }else if(sublist_list[[1]][[1]]==sublist_list[[1]][[2]] |
                sublist_list[[2]][[1]]==sublist_list[[2]][[2]]){
         for(i in 1:2){
           if(sublist_list[[i]][[1]]==sublist_list[[i]][[2]]){
@@ -377,8 +381,8 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
       sub_logical_list <- lapply(sublist_list, function(sublist)as.character(sublist)==sum_var)
       
       # 右行列と左行列で処理を反転させる
-      logic_flip <- list(function(x)x,function(x)!x) 
-      Mat_symbol_list_mod <- sublist_new <- res <- list() 
+      logic_flip <- list(function(x)x,function(x)!x)
+      Mat_symbol_list_mod <- sublist_new <- res <- list()
       for(i in 1:2){
         sublist_new[[i]] <-  sublist_list[[i]][!sub_logical_list[[i]]]
         Mat_symbol_list_mod[[i]] <- Mat_symbol_list[[i]]
@@ -393,7 +397,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
           if(sub_logical_list[[i]]){
             if(i == 1)
               Mat_symbol_list_mod[[i]] <- call("t", Mat_symbol_list[[i]])
-          }else{ 
+          }else{
             stop("想定外です。6")
           }
         }else{
@@ -403,7 +407,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
           sublist_new[[i]] <- list(1) # [1,] の列引数に相当するexpression要素の作成
       }
       result <- BinOper_unify(Mat_symbol_list_mod,
-                              lapply(sublist_new,function(x)x[[1]]), 
+                              lapply(sublist_new,function(x)x[[1]]),
                               "%*%")
     }
     return(result)
@@ -417,46 +421,5 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
 }
 
 
-factorout <- function(expr_str){
-  # 入力文字列を R の式にパース
-  # expr_str <- "A %*% B + A %*% t(B)"
-  # 未完成 
-  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
-    warning("入力が有効な R 式ではありません")
-    return(NULL)
-  })
-  if (is.null(expr)) return(expr)
-  
-  facrec <- function(expr){
-    if (is.symbol(expr) | is.numeric(expr)) {
-      # 変数名の場合 
-      # 変数名を LaTeX のコマンドに変換 (tuika)
-      return(expr)
-    } else if (is.call(expr)) {
-      # 呼び出しの場合：演算子や関数呼び出し
-      first_op <- as.character(expr [[1]])
-      
-      if(first_op %in% c("+", "-")){
-        second_op1 <- as.character(expr[[2]][[1]])
-        second_op2 <- as.character(expr[[3]][[1]])
-        if(second_op1 == second_op2 && second_op1 %in% c("*", "%*%", "%@%")){
-          
-          if(expr[[2]][[2]] ==   expr[[3]][[2]]){
-            call(second_op1, facrec(expr[[2]][[2]]), call(first_op, facrec(expr[[2]][[3]]), facrec(expr[[3]][[3]])))
-          }else if(expr[[2]][[3]] ==   expr[[3]][[3]]){
-            call(second_op1, call(first_op, facrec(expr[[2]][[2]]), facrec(expr[[3]][[2]])), facrec(expr[[2]][[2]]))
-          }else{
-            return(expr)
-          }
-        }else{
-          return(expr)
-        }
-      }else{
-        return(expr)
-      }
-    }
-  }
-  return(facrec(expr))
-}
 
 
