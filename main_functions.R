@@ -417,5 +417,46 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
 }
 
 
+factorout <- function(expr_str){
+  # 入力文字列を R の式にパース
+  # expr_str <- "A %*% B + A %*% t(B)"
+  # 未完成 
+  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
+    warning("入力が有効な R 式ではありません")
+    return(NULL)
+  })
+  if (is.null(expr)) return(expr)
+  
+  facrec <- function(expr){
+    if (is.symbol(expr) | is.numeric(expr)) {
+      # 変数名の場合 
+      # 変数名を LaTeX のコマンドに変換 (tuika)
+      return(expr)
+    } else if (is.call(expr)) {
+      # 呼び出しの場合：演算子や関数呼び出し
+      first_op <- as.character(expr [[1]])
+      
+      if(first_op %in% c("+", "-")){
+        second_op1 <- as.character(expr[[2]][[1]])
+        second_op2 <- as.character(expr[[3]][[1]])
+        if(second_op1 == second_op2 && second_op1 %in% c("*", "%*%", "%@%")){
+          
+          if(expr[[2]][[2]] ==   expr[[3]][[2]]){
+            call(second_op1, facrec(expr[[2]][[2]]), call(first_op, facrec(expr[[2]][[3]]), facrec(expr[[3]][[3]])))
+          }else if(expr[[2]][[3]] ==   expr[[3]][[3]]){
+            call(second_op1, call(first_op, facrec(expr[[2]][[2]]), facrec(expr[[3]][[2]])), facrec(expr[[2]][[2]]))
+          }else{
+            return(expr)
+          }
+        }else{
+          return(expr)
+        }
+      }else{
+        return(expr)
+      }
+    }
+  }
+  return(facrec(expr))
+}
 
 
