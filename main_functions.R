@@ -378,32 +378,19 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
     }
   }
   
+  BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
+    operator_mat <- operator
+    if(operator_mat == "*") operator_mat <- "%@%"
+    call("[",
+         call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
+         sublist_new[[1]],
+         sublist_new[[2]])
+  }
+  
   BinOper_sum2mat <- function(expr, sum_var=NULL){
     operator <- as.character(expr[[1]])
     arguments_BinOperator <- expr[-1] |> 
       lapply(function(x) exchange_sign(sum2mat_convert(x, sum_var=sum_var, in_bi = TRUE)))
-    # Mat_symbol_list <- sublist_list <- NULL
-    # for(i in 1:2){
-    #   op_temp <- as.character(arguments_BinOperator[[i]][[1]])
-    #   if(op_temp == "["){
-    #     Mat_symbol_list[[i]] <- arguments_BinOperator[[i]][[2]]
-    #     x <- arguments_BinOperator[[i]]
-    #     sublist_list[[i]] <-  
-    #       sapply(3:length(x), function(i){
-    #         x[[i]]
-    #       })
-    #   }else if(op_temp %in% c("-", "+")){
-    #     root <- arguments_BinOperator[[i]][[2]]
-    #     Mat_symbol_list[[i]] <- call(op_temp, root[[2]])
-    #     x <- root
-    #     sublist_list[[i]] <-  
-    #       sapply(3:length(x), function(i){
-    #         x[[i]]
-    #       })
-    #   }else{
-    #     stop("エラー")
-    #   }
-    # }
     Mat_symbol_list <- arguments_BinOperator |> sapply(function(x)x[[2]])
     sublist_list <- arguments_BinOperator |> lapply(function(x){
       sapply(3:length(x), function(i){
@@ -411,16 +398,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
       })
     })
     
-    BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
-      operator_mat <- operator
-      if(operator_mat == "*") operator_mat <- "%@%"
-      call("[",
-           call(operator_mat, Mat_symbol_list[[1]], Mat_symbol_list[[2]]),
-           sublist_new[[1]],
-           sublist_new[[2]])
-    }
-    
-    
+    # 条件分岐の整理
     if(is.null(sum_var)){
       sum_logic <- TRUE
     }else if(!(as.character(sum_var) %in% (as.character(unlist(sublist_list))))){
