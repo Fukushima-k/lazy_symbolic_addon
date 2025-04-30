@@ -298,7 +298,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
   })
   
   # とにかく、絶対行列にする関数
-  sum2mat_convert <- function(expr, sum_var=NULL){
+  sum2mat_convert <- function(expr, sum_var=NULL, in_bi=FALSE){
     
     if (is.symbol(expr)) {
       # 変数名の場合
@@ -331,7 +331,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
     }else if(op =="["){
       # a[i,j]
       
-      result <- sq_brackets_sum2mat(expr, sum_var)
+      result <- sq_brackets_sum2mat(expr, sum_var, in_bi)
       return(result)
       
     }else{
@@ -341,8 +341,8 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
     }
   }
   
-  sq_brackets_sum2mat <- function(expr, sum_var = NULL){
-    if(is.null(sum_var)) {
+  sq_brackets_sum2mat <- function(expr, sum_var = NULL, in_bi=FALSE){
+    if(is.null(sum_var) | in_bi) {
       return(expr)
     }else{
       # print("[] in summation")
@@ -381,7 +381,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
   BinOper_sum2mat <- function(expr, sum_var=NULL){
     operator <- as.character(expr[[1]])
     arguments_BinOperator <- expr[-1] |> 
-      lapply(function(x) exchange_sign(sum2mat_convert(x)))
+      lapply(function(x) exchange_sign(sum2mat_convert(x, sum_var=sum_var, in_bi = TRUE)))
     # Mat_symbol_list <- sublist_list <- NULL
     # for(i in 1:2){
     #   op_temp <- as.character(arguments_BinOperator[[i]][[1]])
@@ -420,7 +420,16 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
            sublist_new[[2]])
     }
     
+    
     if(is.null(sum_var)){
+      sum_logic <- TRUE
+    }else if(!(as.character(sum_var) %in% (as.character(unlist(sublist_list))))){
+      sum_logic <- TRUE
+    }else{
+      sum_logic <- FALSE
+    }
+    
+    if(sum_logic){
       
       # 要素積、要素和(operator_mat定義済み)
       Mat_symbol_list_mod <- Mat_symbol_list |> lapply(function(x){

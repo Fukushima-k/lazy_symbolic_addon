@@ -46,6 +46,6 @@ expr_str <- "a[j,i]+b[j,i]"; testthat::expect_equal(sum2mat(expr_str), parse(tex
 expr_str <- "s(a[i,k]*s(b[k,l]*c[l,j],{l}),{k})"; testthat::expect_equal(sum2mat(expr_str), parse(text="(a%*%(b%*%c))[i,j]")[[1]])
 expr_str <- "a[i, k] * s(b[k, l] * c[l, j], {l})"; testthat::expect_equal(sum2mat(expr_str), parse(text="a[i, k] * (b %*% c)[k, j]")[[1]])
 
-
-
 # その他、自由なテスト箇所
+expr_str <- "-A[i,j]-B[i,j]-C[i,j]-D[i,i]*T[j,i] "; testthat::expect_equal(sum2mat(expr_str), parse(text="(-A-B-C-diag(D)%*%t(T))[i,j]")[[1]])
+expr_str <- "s(A[i,s1]*B[s1,j],{s1})+s(A[i,s1]*C[s1,j]*D[j,j],{s1})-s(A[i,s1]*s(C[s1,s2]*T[j,s2],{s2}),{s1}) "; testthat::expect_equal(sum2mat(expr_str), parse(text="(A%*%B+A%*%C%*%diag(D)-A%*%(C%*%t(T)))[i,j]")[[1]])
