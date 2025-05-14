@@ -7,7 +7,7 @@ str_replace_all <- function( string, pattern, replacement ){
 
 to_latex_core <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
-                     print_html = FALSE, use_tidyverse = TRUE) {
+                     print_html = FALSE) {
   if(is.call(expr_str)){
     save_expr_str <- deparse(expr_str)
     expr <- expr_str
@@ -15,10 +15,7 @@ to_latex_core <- function(expr_str, doller = TRUE,
     save_expr_str <- expr_str
     
     if(mat2sum||simple_mat2sum){
-      if(use_tidyverse)
-        expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
-      else
-        expr_str <- gsub("}", ")", gsub("{", "chu_kakko(", expr_str, fixed = TRUE), fixed = TRUE)
+      expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
     }
     
     # 入力文字列を R のexpressionとしてパース
@@ -132,25 +129,12 @@ to_latex_core <- function(expr_str, doller = TRUE,
   
   if(simple_mat2sum){
     # gsub() の replacement に関数を渡す方法
-    if(use_tidyverse){
-      expr <- expr |>
-        str_replace_all("s1", "k") |>
-        str_replace_all("s2", "l") |>
-        str_replace_all("s3", "m") |>
-        str_replace_all("s4", "n") |>
-        str_replace_all("s5", "o")
-    }else{
-      expr <- c("s1 test s2 string", "another s3 and s4 test s5")
-      
-      # 置換ルールの定義 (パターンと置換後の文字列のペア)
-      patterns <- c("s1", "s2", "s3", "s4", "s5")
-      replacements <- c("k", "l", "m", "n", "o")
-      
-      # ループで順番に gsub を適用
-      for (i in seq_along(patterns)) {
-        expr <- gsub(patterns[i], replacements[i], expr, fixed = TRUE)
-      }
-    }
+    expr <- expr |>
+      str_replace_all("s1", "k") |>
+      str_replace_all("s2", "l") |>
+      str_replace_all("s3", "m") |>
+      str_replace_all("s4", "n") |>
+      str_replace_all("s5", "o")
   }
   
   # subscriptの処理
@@ -168,27 +152,9 @@ to_latex_core <- function(expr_str, doller = TRUE,
   return(expr)
 }
 
-
-
-# to_tex_matrix <- function(df, type =c("matrix"), print_html = FALSE) {
-#   type = match.arg(type)
-#   
-#   if(type == "matrix"){
-#     # データフレームの各要素を変換
-#     tex_matrix <- apply(df, c(1,2), to_latex_core, doller = FALSE)
-#     
-#     # 行列を LaTeX の bmatrix 形式で構築
-#     tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
-#     tex_code <- paste0("\\begin{bmatrix}\n", tex_code, "\n\\end{bmatrix}")
-#     
-#     if(print_html) print_tex_as_html(tex_code)
-#     return(tex_code)
-#   }
-# }
-
 to_latex <- function(expr_str, doller = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
-                     print_html = FALSE, use_tidyverse = TRUE){
+                     print_html = FALSE){
   
   if(is.matrix(expr_str)){
     # データフレームの各要素を変換
@@ -205,8 +171,7 @@ to_latex <- function(expr_str, doller = TRUE,
                          doller=doller, 
                          mat2sum = mat2sum,
                          simple_mat2sum = simple_mat2sum,
-                         print_html = print_html,
-                         use_tidyverse = use_tidyverse))
+                         print_html = print_html))
   }
 }
 
@@ -215,7 +180,6 @@ print_tex_as_html <- function(TeX_code, input){
   if(!require(htmltools)){
     stop("package 'htmltools' is required for print_tex_as_html()")
   }
-  
   
   if(missing(input)) input <- ""
   
@@ -230,11 +194,6 @@ print_tex_as_html <- function(TeX_code, input){
       tags$script(src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
     ),
     do.call(tags$body, Ps)
-    # tags$body(
-    #   # h2("MathJax Test in HTML"),
-    #   # p("Inline TeX: ", HTML("\\( a^2 + b^2 = c^2 \\)")),
-    #   p("Result: ", HTML(TeX_code))
-    # )
   )
   
   # View()の代わりにブラウザで表示（HTMLレンダリングされる）
@@ -244,47 +203,6 @@ print_tex_as_html <- function(TeX_code, input){
 
 
 
-
-if(0)expr_str <- "s( a[i,j]*b[j,k]*c[k,l], {k})"
-sum_move_in <- function(expr){
-  # if(mat2sum||simple_mat2sum)
-  expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
-  
-  # 入力文字列を R の式にパース
-  expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
-    warning("入力が有効な R 式ではありません")
-    return(NULL)
-  })
-  if (is.null(expr)) return(expr_str)
-  
-  converter <- function(e){
-    
-    if (is.symbol(e)) {
-      # 変数名の場合
-      # 変数名を LaTeX のコマンドに変換 (tuika)
-      e <- as.character(e)
-      if(e %in% chars)
-        return(paste0("\\", e))
-      else
-        return(e)
-    } else if (is.numeric(e)) {
-      return(as.character(e))
-    } else if (is.call(e)) {
-      op <- as.character(e[[1]])
-      
-      if(op == "s"){
-        ss <- as.character(e[[3]])[2]  # sum_scripts
-        
-        check_sub <- function(expr, ss){
-          
-        }
-        
-        e[[2]]
-      }
-      
-    }
-  }
-}
 
 
 # sum2mat -----------------------------------------------------------------

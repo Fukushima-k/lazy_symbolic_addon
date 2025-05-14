@@ -1,8 +1,19 @@
-source("main_functions.R")
 if(0){
+  # sum2mat()のテストファイル-----
+  
+  ## テストの実行-----
+  if(!require(testthat)){
+    stop("package 'testthat' is required for print_tex_as_html()")
+  }
   testthat::test_file("test_sum2mat.R")
+  
+  ## 実行例
+  sum2mat("s(a[i,k]*b[k,j],{k})")
+  sum2mat("s(a[i,j],{j})")
+  sum2mat("s(a[i,k]*s(b[k,l]*c[l,j],{l}),{k})")
+  
 }
-
+source("main_functions.R")
 
 # sum over k
 expr_str <- "s(a[i,k]*b[k,j],{k})"; testthat::expect_equal(sum2mat(expr_str), parse(text="(a%*%b)[i,j]")[[1]])
