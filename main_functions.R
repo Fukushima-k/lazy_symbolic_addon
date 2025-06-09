@@ -106,7 +106,7 @@ to_latex_core <- function(expr_str, doller = TRUE,
       } else if (op == "%*%") {
         return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
       } else if (op %in% op_supsc) {
-        return(paste0("{", rec_convert(e[[2]]), "}^{", supsc[op == op_supsc], "}"))
+          return(paste0("{", rec_convert(e[[2]]), "}^{", supsc[op == op_supsc], "}"))
       }else if(op == "["){
         stop("作成中。mat2sumの場合はmat2sum=TRUEにして実行してください。")
         
@@ -412,6 +412,94 @@ sum2mat <- function(expr_str, deparse_result = FALSE){
   return(expr_result)
 }
 
-
-
-
+Expand <- function(expr_strs){
+  
+  Expand_one <- function(expr_str) {
+    expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) return(expr_str))
+    result <- distribute(expr)
+    return(deparse(result))
+  }
+  
+  # 再帰的に分配法則を適用
+  distribute <- function(e) {
+    if (!is.call(e)) return(e)
+    
+    op <- as.character(e[[1]])
+    
+    prods <-c("*", "%*%", "/")
+    sums <-c("+", "-")
+    signs <-c("+", "-")
+    
+    
+    # 分配法則適用: a * (b + c)
+    if (op %in% prods) {
+      # lhs <-  e[[2]] <- distribute(remove_kakko(e[[2]]))
+      lhs <-  e[[2]] <- distribute(remove_kakko(e[[2]]))
+      rhs <-  e[[3]] <- distribute(remove_kakko(e[[3]]))
+      
+      # return(distribute_e(lhs, rhs))
+      if(is.call(lhs)){
+        # lhs <- remove_kakko(lhs)
+        first_op <- as.character(lhs[[1]])
+        if(first_op %in% sums){
+          if(length(lhs) == 3){
+            return(call(first_op,
+                        distribute(call(op, lhs[[2]], rhs)),
+                        distribute(call(op, lhs[[3]], rhs))))
+          }
+        } 
+      }
+      
+      if(is.call(rhs)){   # 違いはここだけ
+        if(op != "/"){
+          first_op <- as.character(rhs[[1]])
+          if(first_op %in% sums){
+            if(length(rhs) == 3){
+              return(call(first_op,
+                          distribute(call(op, lhs, rhs[[2]])),
+                          distribute(call(op, lhs, rhs[[3]]))))
+            }
+          }
+        }else{
+          # e[[3]] <- call("(", rhs) これは間違い？？
+        }
+      }
+    }
+    
+    if (op %in% sums & length(e) == 3) {
+      e[[2]] <- distribute(e[[2]]) 
+      e[[3]] <- distribute(e[[3]]) 
+    }
+    
+    # 符号分配適用: - (a + b)
+    if(op %in% signs & length(e) == 2){
+      in_term <-  e[[2]] <- remove_kakko(e[[2]])
+      
+      if(is.call(in_term)){
+        first_op <- as.character(in_term[[1]])
+        if(first_op %in% sums){
+          if(length(in_term) == 3){
+            return(call(first_op,
+                        distribute(call(op, in_term[[2]])),
+                        distribute(call(op, in_term[[3]]))))
+          }
+        }
+      }
+    }
+    return(e)
+  }
+  
+  remove_kakko <- function(e){
+    if(is.call(e)){
+      if(e[[1]] == "("){
+        return(remove_kakko(e[[2]]))
+      }else if(length(e) == 2){
+        e[[1]] 
+        remove_kakko(e[[2]])
+      }
+    }
+    return(e)
+  }
+  
+  return(sapply(expr_strs, Expand_one))
+}
