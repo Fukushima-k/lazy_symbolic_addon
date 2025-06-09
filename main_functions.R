@@ -34,7 +34,9 @@ to_latex_core <- function(expr_str, doller = TRUE,
              "zeta", "eta", "theta", "iota", "kappa", "lambda",
              "mu", "nu", "xi", "omicron", "pi", "rho",
              "sigma", "tau", "upsilon", "phi", "chi",
-             "psi", "omega")
+             "psi", "omega",
+             "Gamma", "Delta", "Theta", "Phi", "Chi", "Sigma", "Psi", "Lambda"
+             )
   
   # 再帰的に式を LaTeX 文字列に変換する内部関数
   rec_convert <- function(e) {
@@ -66,7 +68,7 @@ to_latex_core <- function(expr_str, doller = TRUE,
         }else if(op == "["){
           subscripts_elements <- as.character(e)
           if(is.call(e[[2]])){
-            return(paste0("(", rec_convert(e[[2]]), ")_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
+            return(paste0("\\left(", rec_convert(e[[2]]), "\\right)_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
           }else{
             return(paste0(rec_convert(e[[2]]), "_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
           }
@@ -106,7 +108,11 @@ to_latex_core <- function(expr_str, doller = TRUE,
       } else if (op == "%*%") {
         return(paste0(rec_convert(e[[2]]), rec_convert(e[[3]])))
       } else if (op %in% op_supsc) {
+        if(is.call(e[[2]])){
+          return(paste0("{\\left(", rec_convert(e[[2]]), "\\right)}^{", supsc[op == op_supsc], "}"))
+        }else{
           return(paste0("{", rec_convert(e[[2]]), "}^{", supsc[op == op_supsc], "}"))
+        }
       }else if(op == "["){
         stop("作成中。mat2sumの場合はmat2sum=TRUEにして実行してください。")
         
