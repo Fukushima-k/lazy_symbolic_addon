@@ -174,35 +174,14 @@ to_latex_core <- function(expr_str, dollar = TRUE,
   op_supsc <- c("t", "T", "ginv", "inv")
   supsc <- c("T", "T", "-", "-1")
   
-  # GreekChars=c("Alpha",  "Beta",  "Gamma",  "Delta",  "Epsilon"
-  #  , "Zeta",  "Theta", "Eta"
-  #  , "Iota",  "Kappa",  "Lambda",  "Mu",  "Nu",  "Xi",  "Omicron",  "Pi",  "Rho"
-  # , "Sigma",  "Tau",  "Upsilon",  "Phi",  "Chi",  "Psi",  "Omega" )
-  # chars=c(GreekChars,tolower(GreekChars))
-  
   # 再帰的に式を LaTeX 文字列に変換する内部関数
   rec_convert <- function(e) {
     if (is.symbol(e)) {
       # 変数名の場合
-      # 変数名を LaTeX のコマンドに変換 (tuika)
       e <- as.character(e)
-      
+      # 変数名を LaTeX のコマンドに変換 (tuika)
       e <- greeknum(e)
-      # matches <- vapply(chars, function(p) grepl(p, e), logical(1))
-      # if(any(matches)){
-      #   chr <- names(which(matches)[1])
-      #   e <- gsub(chr, sprintf("\\\\%s", chr), e)
-      # }
-      
-      # for(chr in chars){
-      #   e <- gsub(sprintf("%s", chr), sprintf("\\\\%s", chr), e)
-      # }
       return(e)
-      # 
-      # if(e %in% chars)
-      #   return(paste0("\\", e))
-      # else
-      #   return(e)
     } else if (is.numeric(e)) {
       return(as.character(e))
     } else if (is.call(e)) {
