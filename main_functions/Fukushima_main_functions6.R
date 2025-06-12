@@ -44,24 +44,24 @@
 to_latex <- function(expr_str, dollar = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
                      print_html = FALSE){
-
- if(is.matrix(expr_str)){
-  # データフレームの各要素を変換
-  tex_matrix <- apply(expr_str, c(1,2), to_latex_core, dollar = FALSE)
-
-  # 行列を LaTeX の bmatrix 形式で構築
-  tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
-  tex_code <- paste0("\\begin{bmatrix}\n", tex_code, "\n\\end{bmatrix}")
-
-  if(print_html) print_tex_as_html(tex_code)
-  return(tex_code)
- }else{
-  return(to_latex_core(expr_str,
-                       dollar=dollar,
-                       mat2sum = mat2sum,
-                       simple_mat2sum = simple_mat2sum,
-                       print_html = print_html))
- }
+  
+  if(is.matrix(expr_str)){
+    # データフレームの各要素を変換
+    tex_matrix <- apply(expr_str, c(1,2), to_latex_core, dollar = FALSE)
+    
+    # 行列を LaTeX の bmatrix 形式で構築
+    tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
+    tex_code <- paste0("\\begin{bmatrix}\n", tex_code, "\n\\end{bmatrix}")
+    
+    if(print_html) print_tex_as_html(tex_code)
+    return(tex_code)
+  }else{
+    return(to_latex_core(expr_str,
+                         dollar=dollar,
+                         mat2sum = mat2sum,
+                         simple_mat2sum = simple_mat2sum,
+                         print_html = print_html))
+  }
 } # end of to_latex
 
 
@@ -116,10 +116,11 @@ print_tex_as_html <- function(TeX_code, annotation){
     stop("package 'htmltools' is required for print_tex_as_html()")
   }
   
-  Ps <- NULL
-  for(i in seq_along(TeX_code)){
-    Ps[[i]]  <- p(sprintf("%s%s", annotation[[i]], TeX_code[[i]]))
-  }
+  # Ps <- NULL
+  # for(i in seq_along(TeX_code)){
+  #   Ps[[i]]  <- p(sprintf("%s%s", annotation[[i]], TeX_code[[i]]))
+  # }
+  Ps <- paste0(annotation, TeX_code) %>% lapply(p)
   # Ps <- map2(annotation, output, function(x,y)p(x,y))
   
   html_math <- tags$html(
@@ -149,18 +150,18 @@ str_replace_all <- function( string, pattern, replacement ){
 
 #' The core part of to_latex functions by Dr. Fukushima
 to_latex_core <- function(expr_str, dollar = TRUE,
-                     mat2sum = FALSE, simple_mat2sum = FALSE,
-                     print_html = FALSE) {
+                          mat2sum = FALSE, simple_mat2sum = FALSE,
+                          print_html = FALSE) {
   if(is.call(expr_str)){
     save_expr_str <- deparse(expr_str)
     expr <- expr_str
   }else{
     save_expr_str <- expr_str
-
+    
     if(mat2sum||simple_mat2sum){
       expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
     }
-
+    
     # 入力文字列を R のexpressionとしてパース
     expr <- e <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
@@ -168,42 +169,46 @@ to_latex_core <- function(expr_str, dollar = TRUE,
     })
     if (is.null(expr)) return(expr_str)
   }
-
-
+  
+  
   op_supsc <- c("t", "T", "ginv", "inv")
   supsc <- c("T", "T", "-", "-1")
-
-  if(0){
-  chars <- c("theta", "alpha", "beta", "gamma", "delta", "epsilon",
-             "zeta", "eta", "theta", "iota", "kappa", "lambda",
-             "mu", "nu", "xi", "omicron", "pi", "rho",
-             "sigma", "tau", "upsilon", "phi", "chi",
-             "psi", "omega",
-             "Gamma", "Delta", "Theta", "Phi", "Chi", "Sigma", "Psi", "Lambda",
-             "Omega", "Xi", "Pi" )
-  }
-  GreekChars=c("Alpha",  "Beta",  "Gamma",  "Delta",  "Epsilon"
-   , "Zeta",  "Theta", "Eta"
-   , "Iota",  "Kappa",  "Lambda",  "Mu",  "Nu",  "Xi",  "Omicron",  "Pi",  "Rho"
-  , "Sigma",  "Tau",  "Upsilon",  "Phi",  "Chi",  "Psi",  "Omega" )
-  chars=c(GreekChars,tolower(GreekChars))
-
+  
+  # GreekChars=c("Alpha",  "Beta",  "Gamma",  "Delta",  "Epsilon"
+  #  , "Zeta",  "Theta", "Eta"
+  #  , "Iota",  "Kappa",  "Lambda",  "Mu",  "Nu",  "Xi",  "Omicron",  "Pi",  "Rho"
+  # , "Sigma",  "Tau",  "Upsilon",  "Phi",  "Chi",  "Psi",  "Omega" )
+  # chars=c(GreekChars,tolower(GreekChars))
+  
   # 再帰的に式を LaTeX 文字列に変換する内部関数
   rec_convert <- function(e) {
     if (is.symbol(e)) {
       # 変数名の場合
       # 変数名を LaTeX のコマンドに変換 (tuika)
       e <- as.character(e)
-      if(e %in% chars)
-        return(paste0("\\", e))
-      else
+      
+      e <- greeknum(e)
+      # matches <- vapply(chars, function(p) grepl(p, e), logical(1))
+      # if(any(matches)){
+      #   chr <- names(which(matches)[1])
+      #   e <- gsub(chr, sprintf("\\\\%s", chr), e)
+      # }
+      
+      # for(chr in chars){
+      #   e <- gsub(sprintf("%s", chr), sprintf("\\\\%s", chr), e)
+      # }
       return(e)
+      # 
+      # if(e %in% chars)
+      #   return(paste0("\\", e))
+      # else
+      #   return(e)
     } else if (is.numeric(e)) {
       return(as.character(e))
     } else if (is.call(e)) {
       # 呼び出しの場合：演算子や関数呼び出し
       op <- as.character(e[[1]])
-
+      
       if(mat2sum||simple_mat2sum){
         if(op == "s"){
           # sum_scripts <- e[[3]] |> as.character()
@@ -219,7 +224,7 @@ to_latex_core <- function(expr_str, dollar = TRUE,
           subscripts_elements <- as.character(e)
           if(is.call(e[[2]])){
             return(paste0("\\left(", rec_convert(e[[2]]), "\\right)_{"
-            , paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
+                          , paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
           }else{
             return(paste0(rec_convert(e[[2]]), "_{", paste(subscripts_elements[-(1:2)], collapse = ","), "}"))
           }
@@ -232,7 +237,7 @@ to_latex_core <- function(expr_str, dollar = TRUE,
             return(paste0(substr(op, 2, 2), "(", rec_convert(e[[2]]), ")"))
         }
       }
-
+      
       if (op == "/") {
         # 分数：a / b を \frac{a}{b} に変換
         return(paste0("\\frac{", rec_convert(e[[2]]), "}{", rec_convert(e[[3]]), "}"))
@@ -251,7 +256,7 @@ to_latex_core <- function(expr_str, dollar = TRUE,
       } else if (op == "^") {
         # 累乗：a ^ b を {a}^{b} に変換
         return(paste0("{", rec_convert(e[[2]]), "}^{", rec_convert(e[[3]]), "}"))
-
+        
         # 追加開始
       } else if (op == "(") {
         # 括弧：() を \left( \right) に変換
@@ -261,17 +266,17 @@ to_latex_core <- function(expr_str, dollar = TRUE,
       } else if (op %in% op_supsc) {
         if(is.call(e[[2]])){
           return(paste0(
-          "{\\left(", rec_convert(e[[2]]), "\\right)}^{"
-          , supsc[op == op_supsc], "}"))
+            "{\\left(", rec_convert(e[[2]]), "\\right)}^{"
+            , supsc[op == op_supsc], "}"))
         }else{
           return(paste0("{", rec_convert(e[[2]]), "}^{"
-          , supsc[op == op_supsc], "}"))
+                        , supsc[op == op_supsc], "}"))
         }
       }else if(op == "["){
         stop("作成中。mat2sumの場合はmat2sum=TRUEにして実行してください。")
-
+        
         # 追加終了
-
+        
       } else {
         # 関数呼び出しの場合（例: sqrt, sin, cos など）
         fun_name <- op
@@ -284,9 +289,9 @@ to_latex_core <- function(expr_str, dollar = TRUE,
       return(paste(deparse(e), collapse = " "))
     }
   }
-
+  
   expr <- rec_convert(expr)
-
+  
   if(simple_mat2sum){
     # gsub() の replacement に関数を渡す方法
     expr <- expr |>
@@ -296,78 +301,101 @@ to_latex_core <- function(expr_str, dollar = TRUE,
       str_replace_all("s4", "n") |>
       str_replace_all("s5", "o")
   }
-
+  
   # subscriptの処理
   expr <- gsub("([a-zA-Z0-9]+)_([a-zA-Z0-9]+)", "{{\\1}_{\\2}}", expr)
   # expr <- gsub("([a-zA-Z]+)([0-9]+)", "\\1_{\\2}", expr)
-  expr <- gsub("(?<!_)([A-Za-z]+)([0-9]+)(?!}_)", "{\\1_{\\2}}", expr, perl = TRUE)
-
-
-
+  expr <- gsub("(?<!_)(\\\\?[A-Za-z]+)([0-9]+)(?!}_)", "{\\1_{\\2}}", expr, perl = TRUE)
+  
+  
+  
   if(dollar|print_html){
     expr <- paste0("$$", expr, "$$")
   }
-
+  
   # greek chars with subs: sm20250610
-  expr=greeknum(expr)
-
-
+  # expr=greeknum(expr)
+  
+  
   # 変換結果を返す
   if(print_html) print_tex_as_html(expr, save_expr_str)
   return(expr)
-
+  
 } # end of to_latex_core
 
-
-
 #' convert subscripted Greek characters
-greeknum <- function( texpr, debug=0 ){
- # convert subscripted Greek characters
- # Shin-ichi Mayekawa
- # 20250610
- #
-
- #
- # Args:
- #
- #  texpr A LaTeX expression from to_latex function
- #
-
- # order matters!!
- GreekChars=c("Alpha",  "Beta",  "Gamma",  "Delta",  "Epsilon"
-   , "Zeta",  "Theta", "Eta"
-   , "Iota",  "Kappa",  "Lambda",  "Mu",  "Nu",  "Xi",  "Omicron",  "Pi",  "Rho"
-   , "Sigma",  "Tau",  "Upsilon",  "Phi",  "Chi",  "Psi",  "Omega" )
- greekChars=tolower(GreekChars)
-
- for( i in 1:length(GreekChars) ){
-  from=paste("(?<!\\\\)",GreekChars[i],sep="")
-  to=paste("\\\\",GreekChars[i],sep="")
-  texpr=gsub(from,to,texpr,perl=TRUE)
-  from=paste("(?<!\\\\)",greekChars[i],sep="")
-  to=paste("\\\\",greekChars[i],sep="")
-  texpr=gsub(from,to,texpr,perl=TRUE)
-  if( debug ) printm(i,from,to,texpr)
-
-  if(0){
-   from=paste(GreekChars[i],"([0-9]+)",sep="")
-   to=paste("\\\\",GreekChars[i],"_\\{\\1\\}",sep="")
-   texpr=gsub(from,to,texpr)
-   from=paste(greekChars[i],"([0-9]+)",sep="")
-   to=paste("\\\\",greekChars[i],"_\\{\\1\\}",sep="")
-   texpr=gsub(from,to,texpr)
+greeknum <- function( texpr, debug=0, undef_Greek =c("strip", "keep", "initial")){
+  # convert subscripted Greek characters
+  # Shin-ichi Mayekawa
+  # 20250610
+  #
+  
+  #
+  # Args:
+  #
+  #  texpr A LaTeX expression from to_latex function
+  #
+  
+  # order matters!!
+  GreekChars=c("Alpha",  "Beta",  "Gamma",  "Delta",  "Epsilon"
+               , "Zeta",  "Theta", "Eta"
+               , "Iota",  "Kappa",  "Lambda",  "Mu",  "Nu",  "Xi",  "Omicron",  "Pi",  "Rho"
+               , "Sigma",  "Tau",  "Upsilon",  "Phi",  "Chi",  "Psi",  "Omega" )
+  greekChars=tolower(GreekChars)
+  
+  for( i in 1:length(GreekChars) ){
+    from=paste("(?<!\\\\)",GreekChars[i],sep="")
+    to=paste("\\\\",GreekChars[i],sep="")
+    texpr=gsub(from,to,texpr,perl=TRUE)
+    from=paste("(?<!\\\\)",greekChars[i],sep="")
+    to=paste("\\\\",greekChars[i],sep="")
+    texpr=gsub(from,to,texpr,perl=TRUE)
+    if( debug ) printm(i,from,to,texpr)
+    
+    if(0){
+      from=paste(GreekChars[i],"([0-9]+)",sep="")
+      to=paste("\\\\",GreekChars[i],"_\\{\\1\\}",sep="")
+      texpr=gsub(from,to,texpr)
+      from=paste(greekChars[i],"([0-9]+)",sep="")
+      to=paste("\\\\",greekChars[i],"_\\{\\1\\}",sep="")
+      texpr=gsub(from,to,texpr)
+    }
   }
- }
+  
+  # take care of zeta and eta.
+  texpr=gsub("\\\\z\\\\eta","\\\\zeta",texpr)
+  texpr=gsub("\\\\Z\\\\eta","\\\\Zeta",texpr)
+  texpr=gsub("\\\\th\\\\eta","\\\\theta",texpr)
+  texpr=gsub("\\\\Th\\\\eta","\\\\Theta",texpr)
 
- # take care of zeta and eta.
- texpr=gsub("\\\\z\\\\eta","\\\\zeta",texpr)
- texpr=gsub("\\\\Z\\\\eta","\\\\Zeta",texpr)
- texpr=gsub("\\\\th\\\\eta","\\\\theta",texpr)
- texpr=gsub("\\\\Th\\\\eta","\\\\Theta",texpr)
-
-
- return( texpr)
-
+  texpr=gsub("\\\\B\\\\eta","\\\\Beta",texpr)
+  texpr=gsub("\\\\b\\\\eta","\\\\beta",texpr)
+  
+  texpr=gsub("\\\\E\\\\psi","\\\\Epsi",texpr)
+  texpr=gsub("\\\\e\\\\psi","\\\\epsi",texpr)
+  texpr=gsub("\\\\U\\\\psi","\\\\Upsi",texpr)
+  texpr=gsub("\\\\u\\\\psi","\\\\upsi",texpr)
+  
+  
+  # 
+  undefined_Greeks <-  c("Alpha",  "Beta",  "Epsilon", "Zeta", "Eta"
+            , "Iota",  "Kappa",  "Mu",  "Nu", "Omicron",  "Rho"
+            ,  "Tau",  "Chi")
+  undef_Greek <- match.arg(undef_Greek)
+  if(undef_Greek == "name"){
+    for(ug in undefined_Greeks){
+      texpr <-
+        gsub(sprintf("\\\\(%s)", ug), ug, texpr)
+    }
+  }else if(undef_Greek == "abbrevate"){
+    for(ug in undefined_Greeks){
+      texpr <-
+        gsub(sprintf("\\\\(%s)", ug), substr(ug,1,1), texpr)
+    }
+  }
+  
+  return( texpr)
+  
 } # end of greeknum
 
 
