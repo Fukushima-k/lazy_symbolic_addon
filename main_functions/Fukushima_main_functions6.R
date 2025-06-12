@@ -7,7 +7,9 @@
 #' @param simple_mat2sum = TRUE if the input expression contains summation
 #' and the simpler LaTeX is prefered
 #' @param print_html = TRUE to display the result in RStudio's Viewer pane.
-#'
+#' @param undef_Greek Character string specifying how to handle undefined Greek macros (e.g., \Zeta).
+#'   Use `"strip"` to print them as plain strings (e.g., `\Zeta` → `"Zeta"`), or `"initial"` to print only their initial character (e.g., `"Z"`).
+#' 
 #' @details
 #' This function requires \code{htmltools} package when \code{print_html=TRUE}.
 #'
@@ -43,11 +45,12 @@
 
 to_latex <- function(expr_str, dollar = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
-                     print_html = FALSE){
+                     print_html = FALSE, undef_Greek =c("strip", "keep", "initial")){
   
   if(is.matrix(expr_str)){
     # データフレームの各要素を変換
-    tex_matrix <- apply(expr_str, c(1,2), to_latex_core, dollar = FALSE)
+    tex_matrix <- apply(expr_str, c(1,2), to_latex_core, dollar = FALSE,
+                        undef_Greek = undef_Greek)
     
     # 行列を LaTeX の bmatrix 形式で構築
     tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
@@ -60,7 +63,8 @@ to_latex <- function(expr_str, dollar = TRUE,
                          dollar=dollar,
                          mat2sum = mat2sum,
                          simple_mat2sum = simple_mat2sum,
-                         print_html = print_html))
+                         print_html = print_html,
+                         undef_Greek = undef_Greek))
   }
 } # end of to_latex
 
@@ -136,12 +140,6 @@ print_tex_as_html <- function(TeX_code, annotation){
 
 
 
-
-
-
-
-
-
 #' Simulate str_replace_all of tidyverse.
 str_replace_all <- function( string, pattern, replacement ){
   gsub( pattern, replacement, string )
@@ -151,7 +149,7 @@ str_replace_all <- function( string, pattern, replacement ){
 #' The core part of to_latex functions by Dr. Fukushima
 to_latex_core <- function(expr_str, dollar = TRUE,
                           mat2sum = FALSE, simple_mat2sum = FALSE,
-                          print_html = FALSE) {
+                          print_html = FALSE, undef_Greek =c("strip", "keep", "initial")) {
   if(is.call(expr_str)){
     save_expr_str <- deparse(expr_str)
     expr <- expr_str
@@ -180,7 +178,7 @@ to_latex_core <- function(expr_str, dollar = TRUE,
       # 変数名の場合
       e <- as.character(e)
       # 変数名を LaTeX のコマンドに変換 (tuika)
-      e <- greeknum(e)
+      e <- greeknum(e, undef_Greek=undef_Greek)
       return(e)
     } else if (is.numeric(e)) {
       return(as.character(e))
@@ -361,12 +359,12 @@ greeknum <- function( texpr, debug=0, undef_Greek =c("strip", "keep", "initial")
             , "Iota",  "Kappa",  "Mu",  "Nu", "Omicron",  "Rho"
             ,  "Tau",  "Chi")
   undef_Greek <- match.arg(undef_Greek)
-  if(undef_Greek == "name"){
+  if(undef_Greek == "strip"){
     for(ug in undefined_Greeks){
       texpr <-
         gsub(sprintf("\\\\(%s)", ug), ug, texpr)
     }
-  }else if(undef_Greek == "abbrevate"){
+  }else if(undef_Greek == "initial"){
     for(ug in undefined_Greeks){
       texpr <-
         gsub(sprintf("\\\\(%s)", ug), substr(ug,1,1), texpr)
