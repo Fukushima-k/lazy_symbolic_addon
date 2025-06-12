@@ -66,11 +66,11 @@ to_latex <- function(expr_str, dollar = TRUE,
 
 
 
-#' Print the LaTex as html in RStudio Viewer pane
+#' Print the LaTex as html in RStudio Viewer pane or a RMarkdown (Quarto) document
 #'
 #'
-#' @param TeX_code The input string containing a LaTeX expression
-#' @param input dummy
+#' @param TeX_code The input string vector containing LaTeX expressions
+#' @param annotation (Optional) A string vector containing annotations for the expressions. 
 #'
 #'
 #' @examples
@@ -101,28 +101,36 @@ to_latex <- function(expr_str, dollar = TRUE,
 #' @export
 #'
 
-print_tex_as_html <- function(TeX_code, input){
- if(!require(htmltools)){
-  stop("package 'htmltools' is required for print_tex_as_html()")
- }
-
- if(missing(input)) input <- ""
-
- Ps <- NULL
- for(i in seq_along(TeX_code)){
-  Ps[[i]]  <- p(sprintf("%s%s", input[[i]], TeX_code[[i]]))
- }
- # Ps <- map2(input, output, function(x,y)p(x,y))
-
- html_math <- tags$html(
-  tags$head(
-   tags$script(src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
-  ),
-  do.call(tags$body, Ps)
- )
-
- # View()の代わりにブラウザで表示（HTMLレンダリングされる）
- html_print(html_math)
+print_tex_as_html <- function(TeX_code, annotation){
+  
+  if(missing(annotation)) annotation <- ""
+  
+  if (isTRUE(getOption("knitr.in.progress"))) {
+    # mdに出力する。
+    message("Document is being knitted via knitr, so expressions will appear in the output document, not in the Viewer.")
+    cat(annotation)
+    return(knitr::asis_output(TeX_code))
+  } 
+  
+  if(!require(htmltools)){
+    stop("package 'htmltools' is required for print_tex_as_html()")
+  }
+  
+  Ps <- NULL
+  for(i in seq_along(TeX_code)){
+    Ps[[i]]  <- p(sprintf("%s%s", annotation[[i]], TeX_code[[i]]))
+  }
+  # Ps <- map2(annotation, output, function(x,y)p(x,y))
+  
+  html_math <- tags$html(
+    tags$head(
+      tags$script(src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
+    ),
+    do.call(tags$body, Ps)
+  )
+  
+  # View()の代わりにブラウザで表示（HTMLレンダリングされる）
+  html_print(html_math)
 } # end of print_tex_as_html
 
 
@@ -189,7 +197,7 @@ to_latex_core <- function(expr_str, dollar = TRUE,
       if(e %in% chars)
         return(paste0("\\", e))
       else
-        return(e)
+      return(e)
     } else if (is.numeric(e)) {
       return(as.character(e))
     } else if (is.call(e)) {
