@@ -76,8 +76,9 @@
 #'
 
 # sum2mat -----------------------------------------------------------------
-sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
-
+sum2mat <- function(expr_str, deparse_result = FALSE, print=0 ){
+  
+  
 
   expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
@@ -86,7 +87,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
   })
 
   # とにかく、絶対行列にする関数
-  sum2mat_convert <- function(expr, sum_var=NULL, in_bi=FALSE){
+  sum2mat_convert <- function(expr, sum_var=NULL, in_bi=FALSE, debug = 1){
 
     if (is.symbol(expr)) {
       # 変数名の場合
@@ -104,7 +105,8 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       # s( **** , {i})
       # summationは、対象変数を引数に入れて再帰的に処理
       sum_var <- expr[[3]][[2]]
-      return(sum2mat_convert(expr[[2]], sum_var))
+      expr[[2]] <- sum2mat_convert(expr[[2]]) # sum_varが不要な処理だけ、優先的に済ませる。
+      result <- sum2mat_convert(expr[[2]], sum_var)
 
     }else if(op %in% c("*", "+", "-")){
       # a[i,j] * b[j,k]
@@ -112,21 +114,26 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       # a[i,j] - b[j,k]
 
       if(length(expr) == 3)
+        # 2項演算子の場合
         result <- BinOper_sum2mat(expr, sum_var)
       else
+        # 1項演算子の場合
         result <- call(op, sum2mat_convert(expr[[2]], sum_var))
-      return(result)
     }else if(op =="["){
       # a[i,j]
 
       result <- sq_brackets_sum2mat(expr, sum_var, in_bi)
-      return(result)
 
     }else{
-      print("素通りさせます。")
-      return(expr)
+      # print("素通りさせます。")
+      result <- (expr)
     }
     }
+    if(debug){
+      print(glue::glue("{deparse(expr)} -> ")); cat("   ")
+      print(result)
+    }
+    return(result)
   } # end of sum2mat_convert
 
 
@@ -193,6 +200,11 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
         x[[i]]
       })
     })
+    
+    
+    if(is.call(sublist_list[[1]][[1]])){
+      return(expr)
+    }
 
     # 条件分岐の整理
     if(is.null(sum_var)){
@@ -205,6 +217,11 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
 
     if(sum_logic){
 
+      # 行列がサイズが異なるなら、summation無しは飛ばす。
+      if((length(sublist_list[[1]]) !=2) | (length(sublist_list[[2]]) != 2)){
+        return(expr)
+      }
+      
       # 要素積、要素和(operator_mat定義済み)
       Mat_symbol_list_mod <- Mat_symbol_list |> lapply(function(x){
         # 余計なかっこ()の削除
@@ -239,7 +256,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       }else {
         expr[[2]] <- arguments_BinOperator[[1]]
         expr[[3]] <- arguments_BinOperator[[2]]
-        cat("想定外(想定内)（素通り）")
+        # cat("想定外(想定内)（素通り）")
         return(expr)
       }
 
@@ -249,14 +266,14 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       # if(all(sapply(sublist_list, length) == 2)){
       # sublist_list; Mat_symbol_list; sum_var; operator
       sub_logical_list <- lapply(sublist_list, function(sublist)as.character(sublist)==sum_var)
-
+      
       # 右行列と左行列で処理を反転させる
       logic_flip <- list(function(x)x,function(x)!x)
       Mat_symbol_list_mod <- sublist_new <- res <- list()
       for(i in 1:2){
         sublist_new[[i]] <-  sublist_list[[i]][!sub_logical_list[[i]]]
         Mat_symbol_list_mod[[i]] <- Mat_symbol_list[[i]]
-
+        
         if(length(sublist_list[[i]]) == 2){
           if(logic_flip[[i]](identical(sub_logical_list[[i]], c(TRUE, FALSE)))){
             Mat_symbol_list_mod[[i]] <- call("t", Mat_symbol_list[[i]])
