@@ -249,6 +249,11 @@ to_latex_core <- function(expr_str, dollar = TRUE,
         
         # 追加終了
         
+      } else if(op == "diag"){
+        
+        args <- sapply(as.list(e[-1]), rec_convert)
+        # 一般には \fun{arg1, arg2, ...} 形式にする（必要に応じて書式を調整）
+        return(paste0("\\textrm{diag}(", paste(args, collapse = ", "), ")"))
       } else {
         # 関数呼び出しの場合（例: sqrt, sin, cos など）
         fun_name <- op

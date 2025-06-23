@@ -78,8 +78,6 @@
 # sum2mat -----------------------------------------------------------------
 sum2mat <- function(expr_str, deparse_result = FALSE, print=0 ){
   
-  
-
   expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
     warning("入力が有効な R 式ではありません")
@@ -266,6 +264,12 @@ sum2mat <- function(expr_str, deparse_result = FALSE, print=0 ){
       # if(all(sapply(sublist_list, length) == 2)){
       # sublist_list; Mat_symbol_list; sum_var; operator
       sub_logical_list <- lapply(sublist_list, function(sublist)as.character(sublist)==sum_var)
+      
+      
+      if(!all(sapply(sub_logical_list, any))){
+      # sum_varが両方の行列に含まれないばあい。
+        return(expr)
+      }
       
       # 右行列と左行列で処理を反転させる
       logic_flip <- list(function(x)x,function(x)!x)
