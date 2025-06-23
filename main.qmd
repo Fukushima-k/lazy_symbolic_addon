@@ -104,7 +104,7 @@ invbigA=matSwp(bigA)
 
 ### 自作関数の読み込み
 ```{r}
-source("main_functions.R")
+# source("main_functions.R")
 options(pcre.recursion_limit = 5)
 ```
 
@@ -152,9 +152,24 @@ Print(S)
 to_latex(S) %>% cat()
 ```
 
+
+$$
+\newcommand{\Zeta}{Z} \Zeta
+$$
+
 ```{r}
 # Rstudio上であれば、Viewerで表示できる。
 to_latex(S, print_html = TRUE)
+
+to_latex("s11", print_html = TRUE)
+to_latex("Gamma11", print_html = TRUE)
+to_latex("Kappa11", print_html = TRUE)
+aaa <- to_latex("Zeta11")
+to_latex("eta11", print_html = TRUE)
+to_latex("eta11Gamma1", print_html = TRUE)
+
+
+"$$\newcommand{\Zeta}{Z} {\\Zeta_{11}}$$" %>% print_tex_as_html()
 ```
 
 
