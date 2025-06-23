@@ -111,7 +111,7 @@ print_tex_as_html <- function(TeX_code, annotation){
   
   if (isTRUE(getOption("knitr.in.progress"))) {
     # mdに出力する。
-    message("Document is being knitted via knitr, so expressions will appear in the output document, not in the Viewer.")
+    # message("Document is being knitted via knitr, so expressions will appear in the output document, not in the Viewer.")
     cat(annotation)
     return(knitr::asis_output(TeX_code))
   } 
