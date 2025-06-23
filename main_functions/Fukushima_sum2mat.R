@@ -76,7 +76,7 @@
 #'
 
 # sum2mat -----------------------------------------------------------------
-sum2mat <- function(expr_str, deparse_result = FALSE, print=0 ){
+sum2mat <- function(expr_str, deparse_result = FALSE, print=1 ){
   
   expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
@@ -85,7 +85,7 @@ sum2mat <- function(expr_str, deparse_result = FALSE, print=0 ){
   })
 
   # とにかく、絶対行列にする関数
-  sum2mat_convert <- function(expr, sum_var=NULL, in_bi=FALSE, debug = 1){
+  sum2mat_convert <- function(expr, sum_var=NULL, in_bi=FALSE, debug = 0){
 
     if (is.symbol(expr)) {
       # 変数名の場合
