@@ -145,7 +145,7 @@ str_replace_all <- function( string, pattern, replacement ){
 to_latex_core <- function(expr_str, dollar = TRUE,
                           mat2sum = FALSE, simple_mat2sum = FALSE,
                           print_html = FALSE, undef_Greek =c("strip", "keep", "initial")) {
-  if(is.call(expr_str)){
+  if(is.call(expr_str) | is.symbol(expr_str)){
     save_expr_str <- deparse(expr_str)
     expr <- expr_str
   }else{
@@ -166,6 +166,7 @@ to_latex_core <- function(expr_str, dollar = TRUE,
   
   op_supsc <- c("t", "T", "ginv", "inv")
   supsc <- c("T", "T", "-", "-1")
+  undefined_macro <- c("diag", "tr")
   
   # 再帰的に式を LaTeX 文字列に変換する内部関数
   rec_convert <- function(e) {
@@ -249,11 +250,11 @@ to_latex_core <- function(expr_str, dollar = TRUE,
         
         # 追加終了
         
-      } else if(op == "diag"){
+      } else if(op %in% undefined_macro){
         
         args <- sapply(as.list(e[-1]), rec_convert)
         # 一般には \fun{arg1, arg2, ...} 形式にする（必要に応じて書式を調整）
-        return(paste0("\\textrm{diag}(", paste(args, collapse = ", "), ")"))
+        return(paste0("\\textrm{", op, "}(", paste(args, collapse = ", "), ")"))
       } else {
         # 関数呼び出しの場合（例: sqrt, sin, cos など）
         fun_name <- op
