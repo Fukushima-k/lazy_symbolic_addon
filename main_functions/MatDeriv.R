@@ -157,7 +157,7 @@ Dm_core <- function(expr_str, X_, deparse_result = FALSE){
           #S6
           if(most_right[[1]] == "(")
             most_right <- most_right[[2]]
-          # 仇マール積は交換可能
+          # アダマール積は交換可能
           new_right <- trace_reorder(most_right, "X", "*")
           if(new_right[[1]] == "*"){
             right_in_right <- new_right[[3]]

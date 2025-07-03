@@ -1,5 +1,4 @@
 if(0){
-  setwd("lazy_symbolic_addon/")
   library(lazy.symbolic)
   library(tidyr)
   
@@ -40,7 +39,8 @@ if(0){
   Dm_core("tr(B%*%X^p)", "X")
   
   # Hadamar積を含む場合
-  # to_latexがあだマール積を\bigodotに変換していないので、今後要修正。でも、スカラと行列をを区別できないので難しそう。
+  # to_latexがあだマール積を\odotに変換していないので、今後要修正。でも、スカラと行列をを区別できないので難しそう。
+  # 　　　-> 簡単に解決　二項演算子*の第一引数と第二引数に大文字が含まれている場合に\odotへ変換
   trace_reorder("(X*A)%*%B", "X") %>% to_latex(print_html = TRUE)
   Dm_core("tr((X*A)%*%B)", "X")  %>% to_latex(print_html = TRUE)
   Dm_core("tr((A*X)%*%B)", "X")
@@ -51,6 +51,15 @@ if(0){
   # "X*A*B"  %>% trace_reorder("X", "*")
   # "X*A%*%B"%>% trace_reorder("X", "*")  
   # "X%*%D*A%*%B"  %>% trace_reorder("X", "*")
+  
+  # *のlatex出力の調整。
+  
+  c("A*B", "a*b", "3*5", "a*A", "3*D_a", "-5*b",  "+3*v", "a_A * c_D") %>% 
+    sapply(to_latex) %>% 
+    print_tex_as_html()
+  c("A*B", "a*b", "3*5", "a*A", "3*D_a", "-5*b",  "+3*v", "a_A * c_D") %>% 
+    sapply(to_latex, safe_prod = TRUE) %>% 
+    print_tex_as_html()
   
   # 構造木の確認
   expr_str <- "tr((inv(X)%*% inv(A)) %*% B %*% C)"

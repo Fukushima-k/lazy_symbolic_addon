@@ -83,10 +83,10 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     warning("入力が有効な R 式ではありません")
     return(NULL)
   })
-  
+
   # とにかく、絶対行列にする関数
   sum2mat_convert <- function(expr, sum_var=NULL, in_bi=FALSE, debug = 0){
-    
+
     if (is.symbol(expr)) {
       # 変数名の場合
       # 変数名を LaTeX のコマンドに変換 (tuika)
@@ -98,34 +98,34 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     } else if (is.numeric(expr)) {
       return(expr)
     } else if (is.call(expr)) {
-      op <- as.character(expr[[1]])
-      if(op == "s"){
-        # s( **** , {i})
-        # summationは、対象変数を引数に入れて再帰的に処理
-        sum_var <- expr[[3]][[2]]
-        expr[[2]] <- sum2mat_convert(expr[[2]]) # sum_varが不要な処理だけ、優先的に済ませる。
-        result <- sum2mat_convert(expr[[2]], sum_var)
-        
-      }else if(op %in% c("*", "+", "-")){
-        # a[i,j] * b[j,k]
-        # a[i,j] + b[j,k]
-        # a[i,j] - b[j,k]
-        
-        if(length(expr) == 3)
-          # 2項演算子の場合
-          result <- BinOper_sum2mat(expr, sum_var)
-        else
-          # 1項演算子の場合
-          result <- call(op, sum2mat_convert(expr[[2]], sum_var))
-      }else if(op =="["){
-        # a[i,j]
-        
-        result <- sq_brackets_sum2mat(expr, sum_var, in_bi)
-        
-      }else{
-        # print("素通りさせます。")
-        result <- (expr)
-      }
+    op <- as.character(expr[[1]])
+    if(op == "s"){
+      # s( **** , {i})
+      # summationは、対象変数を引数に入れて再帰的に処理
+      sum_var <- expr[[3]][[2]]
+      expr[[2]] <- sum2mat_convert(expr[[2]]) # sum_varが不要な処理だけ、優先的に済ませる。
+      result <- sum2mat_convert(expr[[2]], sum_var)
+
+    }else if(op %in% c("*", "+", "-")){
+      # a[i,j] * b[j,k]
+      # a[i,j] + b[j,k]
+      # a[i,j] - b[j,k]
+
+      if(length(expr) == 3)
+        # 2項演算子の場合
+        result <- BinOper_sum2mat(expr, sum_var)
+      else
+        # 1項演算子の場合
+        result <- call(op, sum2mat_convert(expr[[2]], sum_var))
+    }else if(op =="["){
+      # a[i,j]
+
+      result <- sq_brackets_sum2mat(expr, sum_var, in_bi)
+
+    }else{
+      # print("素通りさせます。")
+      result <- (expr)
+    }
     }
     if(debug){
       print(glue::glue("{deparse(expr)} -> ")); cat("   ")
@@ -133,9 +133,9 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     }
     return(result)
   } # end of sum2mat_convert
-  
-  
-  
+
+
+
   sq_brackets_sum2mat <- function(expr, sum_var = NULL, in_bi=FALSE){
     if(is.null(sum_var) | in_bi) {
       return(expr)
@@ -155,15 +155,15 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       }else{
         Mat_symbol <- expr[[2]]
       }
-      
+
       expr_new[[2]] <- call("(", call("%*%", Mat_symbol, as.symbol("one")))
-      
+
       return(expr_new)
     }
   } # end of sq_brackets_sum2mat
-  
-  
-  
+
+
+
   exchange_sign <- function(expr){
     op_temp <- as.character(expr[[1]])
     if(op_temp %in% c("-", "+")){
@@ -174,9 +174,9 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       return(expr)
     }
   } # end of exchange_sign
-  
-  
-  
+
+
+
   BinOper_unify <- function(Mat_symbol_list, sublist_new, operator){
     operator_mat <- operator
     if(operator_mat == "*") operator_mat <- "%@%"
@@ -185,9 +185,9 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
          sublist_new[[1]],
          sublist_new[[2]])
   } # end of BinOper_unify
-  
-  
-  
+
+
+
   BinOper_sum2mat <- function(expr, sum_var=NULL){
     operator <- as.character(expr[[1]])
     arguments_BinOperator <- expr[-1] |>
@@ -203,7 +203,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     if(is.call(sublist_list[[1]][[1]])){
       return(expr)
     }
-    
+
     # 条件分岐の整理
     if(is.null(sum_var)){
       sum_logic <- TRUE
@@ -212,9 +212,9 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     }else{
       sum_logic <- FALSE
     }
-    
+
     if(sum_logic){
-      
+
       # 行列がサイズが異なるなら、summation無しは飛ばす。
       if((length(sublist_list[[1]]) !=2) | (length(sublist_list[[2]]) != 2)){
         return(expr)
@@ -232,7 +232,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
         # print("添え字の順が反対")
         Mat_symbol_list_mod[[2]] <- call("t", Mat_symbol_list_mod[[2]])
         return(BinOper_unify(Mat_symbol_list_mod, sublist_list[[1]], operator))
-        
+
         # 対角行列
       }else if(sublist_list[[1]][[1]]==sublist_list[[1]][[2]] |
                sublist_list[[2]][[1]]==sublist_list[[2]][[2]]){
@@ -249,7 +249,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
           }
         }
         return(BinOper_unify(Mat_symbol_list, sublist_new, "%*%"))
-        
+
         # その他
       }else {
         expr[[2]] <- arguments_BinOperator[[1]]
@@ -257,7 +257,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
         # cat("想定外(想定内)（素通り）")
         return(expr)
       }
-      
+
       # sum_varがある場合
     }else {
       ## 行列同士
@@ -267,7 +267,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       
       
       if(!all(sapply(sub_logical_list, any))){
-        # sum_varが両方の行列に含まれないばあい。
+      # sum_varが両方の行列に含まれないばあい。
         return(expr)
       }
       
@@ -303,19 +303,19 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     }
     return(result)
   } # end of BinOper_sum2mat
-  
-  
+
+
   expr_result <- sum2mat_convert(expr)
-  
+
   if(deparse_result){
     expr_result <- deparse(expr_result)
     if( print ) printm(expr_result)
   }
-  
+
   return(expr_result)
-  
-  
-  
+
+
+
 } # end of sum2mat
 
 
