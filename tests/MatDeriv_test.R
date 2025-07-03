@@ -1,6 +1,8 @@
+
 if(0){
   library(lazy.symbolic)
   library(tidyr)
+  source("main_functions/gradmn3.R")
   
   testthat::test_file("tests/MatDeriv_test.R")
   
