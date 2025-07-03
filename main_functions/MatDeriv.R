@@ -1,3 +1,8 @@
+#' Decompose Matrix Product
+#'
+#'
+#' @export
+#'
 
 decompose_MatProd <- function(expr, op){
   
@@ -33,7 +38,14 @@ decompose_MatProd <- function(expr, op){
   }
   
   temp_current
-}
+} # end of decompose_MatProd
+
+
+#' Simplify Power
+#'
+#'
+#' @export
+#'
 
 simplify_power <- function(expr){
   
@@ -53,17 +65,24 @@ simplify_power <- function(expr){
   expr_str <- paste(temp_factors, collapse = op)
   
   parse(text=expr_str)[[1]]
-}
+} # end of simplify_power
+
+
+#' Reorder Tracet
+#'
+#'
+#' @export
+#'
 
 trace_reorder <- function(expr, X_, op = "%*%"){
   # X_ become most right side
   
   
   if(is.character(expr))
-  expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
-    warning("入力が有効な R 式ではありません")
-    return(NULL)
-  })
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
   
   temp_current <- decompose_MatProd(expr, op)
   symbols_current <- as.character(temp_current)
@@ -81,7 +100,17 @@ trace_reorder <- function(expr, X_, op = "%*%"){
   }else{
     return(expr)
   }
-}
+} # end of trace_reorder
+
+
+#' Core Function of the Symbolic Derivative of Trace w.r.t a Matrix
+#'
+#' @param expr_str scalar function of a matrix argument
+#' @param X A matrix variable with respect to which the derivative is taken
+#' @param deparse_result = TRUE
+#'
+#' @export
+#'
 
 Dm_core <- function(expr_str, X_, deparse_result = FALSE){
   
@@ -107,7 +136,7 @@ Dm_core <- function(expr_str, X_, deparse_result = FALSE){
         # それ以外の左のファクター
         other_left <- expr[[2]][[2]]
         if(most_right ==  expr_var){
-          # S2 
+          # S2
           result <- call("t", other_left)
         } else if(deparse(most_right) %in% invs){
           #S3.1 3.2
@@ -163,5 +192,5 @@ Dm_core <- function(expr_str, X_, deparse_result = FALSE){
   }
   return(result)
   
-}
+} # end of Dm_core
 

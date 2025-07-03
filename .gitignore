@@ -34,3 +34,5 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 lazy_symbolic_addon.Rproj
+
+compiled_packages
