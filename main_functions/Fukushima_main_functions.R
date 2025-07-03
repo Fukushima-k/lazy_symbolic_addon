@@ -9,6 +9,10 @@
 #' @param print_html = TRUE to display the result in RStudio's Viewer pane.
 #' @param undef_Greek Character string specifying how to handle undefined Greek macros (e.g., \Zeta).
 #'   Use `"strip"` to print them as plain strings (e.g., `\Zeta` → `"Zeta"`), or `"initial"` to print only their initial character (e.g., `"Z"`).
+#' @param Hadamard Logical. If `TRUE`, operators that appear to represent the Hadamard product are converted to `\\odot`. 
+#' However, since R does not distinguish between element-wise (Hadamard) products and scalar multiplication, 
+#' it is not possible to clearly differentiate the two.
+#'  
 #' 
 #' @details
 #' This function requires \code{htmltools} package when \code{print_html=TRUE}.
@@ -45,12 +49,13 @@
 
 to_latex <- function(expr_str, dollar = TRUE,
                      mat2sum = FALSE, simple_mat2sum = FALSE,
-                     print_html = FALSE, undef_Greek =c("strip", "keep", "initial")){
+                     print_html = FALSE, undef_Greek =c("strip", "keep", "initial"), 
+                     Hadamard = TRUE){
   
   if(is.matrix(expr_str)){
     # データフレームの各要素を変換
     tex_matrix <- apply(expr_str, c(1,2), to_latex_core, dollar = FALSE,
-                        undef_Greek = undef_Greek)
+                        undef_Greek = undef_Greek, Hadamard=Hadamard)
     
     # 行列を LaTeX の bmatrix 形式で構築
     tex_code <- paste0(apply(tex_matrix, 1, paste, collapse = " & "), collapse = " \\\\\n")
@@ -64,7 +69,8 @@ to_latex <- function(expr_str, dollar = TRUE,
                          mat2sum = mat2sum,
                          simple_mat2sum = simple_mat2sum,
                          print_html = print_html,
-                         undef_Greek = undef_Greek))
+                         undef_Greek = undef_Greek,
+                         Hadamard=Hadamard))
   }
 } # end of to_latex
  
@@ -144,7 +150,9 @@ str_replace_all <- function( string, pattern, replacement ){
 #' The core part of to_latex functions by Dr. Fukushima
 to_latex_core <- function(expr_str, dollar = TRUE,
                           mat2sum = FALSE, simple_mat2sum = FALSE,
-                          print_html = FALSE, undef_Greek =c("strip", "keep", "initial")) {
+                          print_html = FALSE, 
+                          undef_Greek =c("strip", "keep", "initial"),
+                          Hadamard=Hadamard) {
   if(is.call(expr_str) | is.symbol(expr_str)){
     save_expr_str <- deparse(expr_str)
     expr <- expr_str
@@ -216,7 +224,19 @@ to_latex_core <- function(expr_str, dollar = TRUE,
         return(paste0("\\frac{", rec_convert(e[[2]]), "}{", rec_convert(e[[3]]), "}"))
       } else if (op == "*") {
         # 乗算：a * b を a \cdot b に変換
-        return(paste0(rec_convert(e[[2]]), " \\cdot ", rec_convert(e[[3]])))
+        # Hadamard：a * b を a \odot b に変換
+        lhand <- rec_convert(e[[2]])
+        rhand <- rec_convert(e[[3]])
+        
+        if(Hadamard){
+          # if including capital cases, \\odot is used.
+          if(all(grepl("[A-Z]", c(lhand, rhand))))  return(paste0(lhand, " \\odot ", rhand))
+          
+          if(any(grepl("^[+-|0-9]+$", c(lhand, rhand)))){
+            return(paste0(lhand, " \\odot ", rhand))
+          }
+        }
+        return(paste0(lhand, " \\cdot ", rhand))
       } else if (op == "+") {
         return(paste0(rec_convert(e[[2]]), " + ", rec_convert(e[[3]])))
       } else if (op == "-") {
