@@ -1,5 +1,6 @@
 #' Decompose Matrix Product
 #'
+#' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
 #'
 #' @export
 #'
@@ -43,28 +44,37 @@ decompose_MatProd <- function(expr, op){
 
 #' Simplify Power
 #'
+#' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
 #'
 #' @export
 #'
 
 simplify_power <- function(expr){
   
-  op <- "%*%"
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
       return(NULL)
     })
   
-  temp_current <- decompose_MatProd(expr, op)
-  symbols_past <- as.character(temp_current)
+  powerize <- function(expr, op){
+    temp_current <- decompose_MatProd(expr, op)
+    symbols_past <- as.character(temp_current)
+    
+    if(op =="%*%"){
+      length_encoding <- rle(symbols_past)
+    }else if(op == "*"){
+      tbl_symbol <- table(symbols_past)
+      length_encoding <- list(lengths = paste0("(", tbl_symbol, ")"), values = names(tbl_symbol))
+    }
+    temp_factors <- paste0(length_encoding$values,  "^", length_encoding$lengths)
+    temp_factors <- gsub("\\^\\(*1\\)*", "", temp_factors)
+    expr_str <- paste(temp_factors, collapse = op)
+    
+    parse(text=expr_str)[[1]]
+  }
   
-  length_encoding <- rle(symbols_past)
-  temp_factors <- paste0(length_encoding$values,  "^", length_encoding$lengths)
-  temp_factors <- gsub("\\^1", "", temp_factors)
-  expr_str <- paste(temp_factors, collapse = op)
-  
-  parse(text=expr_str)[[1]]
+  powerize(powerize(expr, "*"), "%*%")
 } # end of simplify_power
 
 
@@ -86,16 +96,30 @@ trace_reorder <- function(expr, X_, op = "%*%"){
   
   temp_current <- decompose_MatProd(expr, op)
   symbols_current <- as.character(temp_current)
+  N <- length(symbols_current)
   
   if(any(grepl(X_, symbols_current))){
     # return(glue::glue("{expr_str} + {X_}"))
     X_index <- which(grepl(X_, symbols_current))
-    
-    if(X_index == length(symbols_current)){
-      return(expr)
+   
+    # process transpose
+    target <- temp_current[[X_index]]
+    if(is.call(target)){
+      if(target[[1]]=="t"){
+        # symbols_current_temp <- paste0("t(", symbols_current, ")")
+        symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
+        symbols_current <- symbols_current_temp[N:1]
+        X_index <- N-X_index+1
+      }
     }
-    expr_str <- paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], collapse = op)
-    expr <- parse(text = expr_str)[[1]]
+    
+    if(X_index == N){
+      expr_str <- paste0(symbols_current, collapse = op)
+      expr <- parse(text = expr_str)[[1]]
+    }else{
+      expr_str <- paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], collapse = op)
+      expr <- parse(text = expr_str)[[1]]
+    }
     return(expr)
   }else{
     return(expr)
@@ -112,23 +136,51 @@ trace_reorder <- function(expr, X_, op = "%*%"){
 #' @export
 #'
 
-Dm_core <- function(expr_str, X_, deparse_result = FALSE){
+Dm_core <- function(expr, X_, deparse_result = FALSE){
   
-  expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
-  expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
-    warning("入力が有効な R 式ではありません")
-    return(NULL)
-  })
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
   result <- NULL
   
   expr_var <- parse(text= X_)[[1]]
   
   invs <- paste0(c("inv", "ginv"), "(", X_, ")")
-  
-  # S1 & S2
+  sums <- c("+", "-")
+  prods <- c("*")
   
   if(is.call(expr)){
-    if(as.character(expr[[1]]) == "tr"){
+    
+    #S1
+    if(!grepl(X_, deparse(expr[[2]]))){
+        result <- as.symbol("O")
+    # 一般公式
+    # 23
+    }else if(as.character(expr[[1]]) %in% sums){
+      expr[[2]] <-Dm_core(expr[[2]], X_)
+      expr[[3]] <-Dm_core(expr[[3]], X_)
+      result <- expr
+    # 25
+    }else if(as.character(expr[[1]]) %in% prods){
+      op <- as.character(expr[[1]])
+      lhand_deriv <-Dm_core(expr[[2]], X_) %>% deparse
+      rhand_deriv <-Dm_core(expr[[3]], X_) %>% deparse
+      lhand <- expr[[2]] %>% deparse
+      rhand <- expr[[3]] %>% deparse
+      res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
+      result <- parse(text = res_str)[[1]]
+    }else if(as.character(expr[[1]]) %in% "exp"){
+      result <- call("*", 
+                     expr,
+                     Dm_core(expr[[2]], X_))
+      
+    }else if(as.character(expr[[1]]) %in% "log"){
+      res_str <- glue::glue("1/({deparse(expr[[2]])}) * {Dm_core(expr[[2]], X_, deparse_result = TRUE)}")
+      result <- parse(text = res_str)[[1]]
+    # 特定公式
+    }else if(as.character(expr[[1]]) == "tr"){
       expr[[2]] <- trace_reorder(expr[[2]], X_)
       if(as.character(expr[[2]][[1]]) == "%*%"){
         # トレース内最も右のファクター
@@ -145,14 +197,20 @@ Dm_core <- function(expr_str, X_, deparse_result = FALSE){
           result <- parse(text = res_str)[[1]]
         } else if(most_right[[1]] == "^"){
           # S7
-          p <- most_right[[3]]
-          if(is.symbol(p)){
-            most_right[[3]] <- call("-", p, 1)
-          }else{
-            most_right[[3]] <- p-1
-          }
-          res_str <- glue::glue("{p}*({deparse(most_right)} * t({other_left}))")
-          result <- parse(text = res_str)[[1]]
+          power <- most_right[[3]]
+          if(is.call(power)){
+            if(power[[1]]=="("){
+              p <- power[[2]]
+              if(is.symbol(p)){
+                power[[2]] <- call("-", p, 1)
+              }else{
+                power[[2]] <- p-1
+              }
+              most_right[[3]] <- power
+              res_str <- glue::glue("{p}*({deparse(most_right)} * t({other_left}))")
+              result <- parse(text = res_str)[[1]]
+            }
+          } 
         }else if(grepl(X_, deparse(most_right)) | grepl("*", deparse(most_right))){
           #S6
           if(most_right[[1]] == "(")
@@ -173,15 +231,11 @@ Dm_core <- function(expr_str, X_, deparse_result = FALSE){
     }else if(as.character(expr[[1]]) == "det") {
       # S4
       if(expr[[2]] == expr_var){
-        res_str <- glue::glue("det({X_})%*%inv(t({X_}))")
+        res_str <- glue::glue("det({X_})*inv(t({X_}))")
         result <- parse(text = res_str)[[1]]
       }
       
-    } else {
-      #S1
-      if(!any(deparse(expr[[2]]) %in% X_))
-        result <- as.symbol("O")
-    }
+    } 
   }
   
   

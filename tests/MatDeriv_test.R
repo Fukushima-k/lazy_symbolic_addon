@@ -19,9 +19,15 @@ if(0){
   trace_reorder("B %*% inv(X)%*%A", "X")
   trace_reorder("(X*A)%*%B", "X")
   
+  # 第三世代
+  trace_reorder("A%*%t(X)", "X")
+  trace_reorder("t(X)%*%B", "X")
+  trace_reorder("A%*%t(X)%*%C", "X")
+  
   Dm_core("f(A)", "X") %>% to_latex(print_html = TRUE)
   Dm_core("tr(A%*%X)", "X") %>% to_latex(print_html = TRUE)
   Dm_core("tr(A%*%inv(X))", "X") %>% to_latex(print_html = TRUE)
+  Dm_core("tr(t(X)%*%B)", "X")
   Dm_core("det(X)", "X") %>% to_latex(print_html = TRUE)
   
   # reorderが必要
@@ -34,8 +40,17 @@ if(0){
    
   # べき乗の処理
   simplify_power("X%*%X%*%A%*%C%*%A%*%A%*%A") %>% to_latex(print_html = TRUE)
+  simplify_power("X*X*A*C*A*A*A") %>% to_latex(print_html = TRUE)
+  # 現状は、入れ子がうまく処理されない場合があるので要注意。
+  simplify_power("A*X%*%A*A") 
+  simplify_power("A%*%X*A%*%A") 
+  # 要素のべき乗行列は微分可能
+  Dm_core("tr(X^(3)%*%B)", "X") %>% to_latex(print_html = TRUE) # 数字、文字両方対応
+  Dm_core("tr(X^(p)%*%B)", "X") %>% to_latex(print_html = TRUE)
+  Dm_core("tr(B%*%X^(e))", "X")
+  # 通常のべき乗行列はundefined
   Dm_core("tr(X^3%*%B)", "X") %>% to_latex(print_html = TRUE) # 数字、文字両方対応
-  Dm_core("tr(X^p%*%B)", "X") %>% to_latex(print_html = TRUE)
+  Dm_core("tr(X^d%*%B)", "X") %>% to_latex(print_html = TRUE)
   Dm_core("tr(B%*%X^p)", "X")
   
   # Hadamar積を含む場合
@@ -61,11 +76,24 @@ if(0){
     sapply(to_latex, safe_prod = TRUE) %>% 
     print_tex_as_html()
   
+  
+  # f(X) + g(X)の微分
+  Dm_core("tr(A%*%X)+tr(B%*%X)", "X")
+  Dm_core("tr(A%*%X)*tr(B%*%X)", "X")
+  Dm_core("tr(A%*%X)+tr(t(X)%*%B)+tr(C%*%B)", "X")
+  Dm_core("exp(tr(A%*%X)) + exp(tr(B%*%X))", "X")
+  Dm_core("log(tr(A%*%X))", "X")
+
+  
+
+  
   # 構造木の確認
   expr_str <- "tr((inv(X)%*% inv(A)) %*% B %*% C)"
   expr_str <- "tr(inv(X) + inv(A) + B + C)"
   expr_str <- "X*A %*% B"
-  eval(parse(text = glue::glue("ast({expr_str})") ))
+  
+  expr_str <- "X%*%A + D%*%B - A*A + C*C"
+  eval(parse(text = glue::glue("lobstr::ast({expr_str})") ))
 }
 
 
@@ -76,6 +104,23 @@ if(0){
 # result_str <- "O"
 # testthat::expect_equal(Dm_core(expr_str, "X"), parse(text=result_str)[[1]])
 
+check_numerical_identity <- function(funcs, seed = 123){
+  if(seed == "r"){
+    seed <- runif(1) * 1e+8
+  }
+  sapply(funcs, function(func){
+    set.seed(seed)
+    Xn <- matrix(rnorm(3*3), 3)
+    An <- 3*matrix(rnorm(3*3), 3)
+    Bn <- 0.3*matrix(rnorm(3*3), 3)
+    Cn <- -1*matrix(rnorm(3*3), 3)
+    O <- 0
+    p <- sample(2:10, size = 1)
+    Gradmn <- gradmn(func, X=Xn, A=An, B=Bn, C=Cn, O=O, p=p, print=0, debug=0 )
+    Gradma <- gradma(func, X=Xn, A=An, B=Bn, C=Cn, O=O, p=p, print=0, debug=0 )
+    max(abs(Gradmn - Gradma))
+  })
+}
 
 easy_parse <- function(text){
   parse(text=text)[[1]]
@@ -103,23 +148,7 @@ test_that("Dm_core derivatives", {
   expect_equal(Dm_core("tr(A%*%X)", "X"),                        easy_parse("t(A)"))
   expect_equal(Dm_core("tr(A%*%inv(X))", "X"),                   easy_parse("-t(inv(X) %*% A %*% inv(X))"))
   expect_equal(Dm_core("tr(A%*%ginv(X))", "X"),                   easy_parse("-t(ginv(X) %*% A %*% ginv(X))"))
-  expect_equal(Dm_core("det(X)", "X"),                           easy_parse("det(X) %*% inv(t(X))"))
-  
-  # reorderが必要
-  expect_equal(Dm_core("tr(X%*%C)", "X"),                        easy_parse("t(C)"))
-  expect_equal(Dm_core("tr(A%*%X%*%C)", "X"),                    easy_parse("t(C %*% A)"))
-  
-  # reorderをf(X)に対応
-  expect_equal(Dm_core("tr(inv(X)%*% A)", "X"),                  easy_parse("-t(inv(X) %*% A %*% inv(X))"))
-  expect_equal(Dm_core("tr(inv(X)%*% inv(A) %*% B %*% C)", "X"), easy_parse("-t(inv(X) %*% inv(A) %*% B %*% C %*% inv(X))"))
-})
-
-test_that("Dm_core derivatives", {
-  expect_equal(Dm_core("f(A)", "X"),                             easy_parse("O"))
-  expect_equal(Dm_core("tr(A%*%X)", "X"),                        easy_parse("t(A)"))
-  expect_equal(Dm_core("tr(A%*%inv(X))", "X"),                   easy_parse("-t(inv(X) %*% A %*% inv(X))"))
-  expect_equal(Dm_core("tr(A%*%ginv(X))", "X"),                   easy_parse("-t(ginv(X) %*% A %*% ginv(X))"))
-  expect_equal(Dm_core("det(X)", "X"),                           easy_parse("det(X) %*% inv(t(X))"))
+  expect_equal(Dm_core("det(X)", "X"),                           easy_parse("det(X) * inv(t(X))"))
   
   # reorderが必要
   expect_equal(Dm_core("tr(X%*%C)", "X"),                        easy_parse("t(C)"))
@@ -137,9 +166,9 @@ test_that("Dm_core derivatives", {
 
 test_that("powers of X", {
   expect_equal(simplify_power("X%*%X%*%A%*%C%*%A%*%A%*%A") ,　easy_parse("X^2 %*% A %*% C %*% A^3"))
-  expect_equal(Dm_core("tr(X^3%*%B)", "X"),               easy_parse("3 * (X^2 * t(B))"))
-  expect_equal(Dm_core("tr(X^p%*%B)", "X"),               easy_parse("p * (X^(p - 1) * t(B))"))
-  expect_equal(Dm_core("tr(B%*%X^p)", "X"),               easy_parse("p * (X^(p - 1) * t(B))"))
+  expect_equal(Dm_core("tr(X^(3)%*%B)", "X"),               easy_parse("3 * (X^(2) * t(B))"))
+  expect_equal(Dm_core("tr(X^(p)%*%B)", "X"),               easy_parse("p * (X^(p - 1) * t(B))"))
+  expect_equal(Dm_core("tr(B%*%X^(p))", "X"),               easy_parse("p * (X^(p - 1) * t(B))"))
 })
 
 # -------------------------------------------------------------------------
@@ -152,6 +181,49 @@ test_that("Hadamard product under trace", {
   expect_equal(Dm_core("tr((A*X*C)%*%B)", "X"),               easy_parse("C * A * t(B)"))
   expect_equal(Dm_core("tr((X*(A%*%C))%*%B)", "X"),               easy_parse("(A %*% C) * t(B)"))
 })
+
+
+# -------------------------------------------------------------------------
+# transpose and basic fomula
+# -------------------------------------------------------------------------
+
+test_that("transpose", {
+  expect_equal(Dm_core("tr(A%*%t(X))", "X")             ,easy_parse("t(t(A))"))
+  expect_equal(Dm_core("tr(t(X)%*% B)", "X")            ,easy_parse("t(t(B))"))
+  expect_equal(Dm_core("tr(A%*%t(X)%*%C%*%t(B))", "X")  ,easy_parse("t(t(A) %*% B %*% t(C))"))
+})
+
+test_that("basic fomula", {
+  expect_equal(Dm_core("tr(A%*%X)+tr(B%*%X)", "X")                ,easy_parse("t(A) + t(B)"))
+  expect_equal(Dm_core("tr(A%*%X)*tr(B%*%X)", "X")                ,easy_parse("t(A) * tr(B %*% X) + t(B) * tr(A %*% X)"))
+  expect_equal(Dm_core("tr(A%*%X)+tr(t(X)%*%B)+tr(C%*%B)", "X")   ,easy_parse("t(A) + t(t(B)) + O"))
+  expect_equal(Dm_core("exp(tr(A%*%X)) + exp(tr(B%*%X))", "X")    ,easy_parse("exp(tr(A %*% X)) * t(A) + exp(tr(B %*% X)) * t(B)"))
+  expect_equal(Dm_core("log(tr(A%*%X))", "X")                     ,easy_parse("1/(tr(A %*% X)) * t(A)"))
+})
+
+
+# -------------------------------------------------------------------------
+# compared with numerical gradients
+# -------------------------------------------------------------------------
+
+c("tr(A%*%inv(X))",
+  "det(X)",
+  "tr(inv(X)%*% inv(A) %*% B %*% C)",
+  "tr(X^(3)%*%B)",
+  "tr(B%*%X^(p))",
+  "tr((X*A)%*%B)",
+  "tr((X*(A%*%C))%*%B)",
+  "tr(A%*%X)+tr(B%*%X)",
+  "tr(A%*%X)+tr(X%*%B)+tr(C%*%B)",
+  "tr(A%*%X)*tr(X%*%B)",
+  "exp(tr(A%*%X)) * tr(B%*%X)",
+  "tr(A%*%t(X))",
+  "tr(A%*%t(X)%*%C%*%B)",
+  "tr(A%*%t(X)%*%C%*%t(B))",
+  # "exp(tr(A%*%X)) * exp(tr(B%*%X))", # どこかで代入に失敗している模様。
+  "exp(tr(A%*%X)) + exp(tr(B%*%X))"
+) %>% 
+  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, 0.00001)
 
 
 
