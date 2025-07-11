@@ -178,6 +178,39 @@ FreeQ <- function(expr, varname) {
 } # end of FreeQ
 
 
+#' drop parens
+#' 
+#' @examples
+#' # example code
+#' drop_parens("X")
+#' drop_parens("((X))")
+#' drop_parens("(t((X)))")
+#' drop_parens("(t((tr((X)))))")
+#' 
+#' 
+#' @export 
+#' 
+
+drop_parens <- function(expr){
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  if(is.call(expr)){
+    if(expr[[1]] == "("){
+      expr <- drop_parens(expr[[2]])
+    }else if(length(expr) == 2){
+      # ignore unary operator 
+      expr[[2]] <- drop_parens(expr[[2]])
+    }
+  }
+  return(expr)
+}
+
+
+
 #' Core Function of the Symbolic Derivative of Trace w.r.t a Matrix
 #'
 #' @param expr_str scalar function of a matrix argument
@@ -300,7 +333,7 @@ Dm_core <- function(expr, X_, deparse_result = FALSE){
 } # end of Dm_core
 
 
-mD0 <- function( expr, X_, print=1, debug=0 ){
+mD0 <- function( expr, X_="X", print=1, debug=0 ){
   # product rule for trace
   # Shin-ichi Mayekawa
   # 20250705cot,06cot,07,08
@@ -345,6 +378,21 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
     }
     
     
+    prods <- c("*")
+    if(as.character(expr[[1]]) %in% prods){
+      op <- as.character(expr[[1]])
+      lhand_deriv <- deparse(Dm_core(expr[[2]], X_))
+      rhand_deriv <- deparse(Dm_core(expr[[3]], X_))
+      lhand <- deparse(expr[[2]])
+      rhand <- deparse(expr[[3]])
+      res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
+      expr <- parse(text = res_str)[[1]]
+      if( debug ) show_ast(expr)
+      
+      res = deparse(expr)
+      return(res)
+    }
+
     
     if (as.character(expr[[1]]) == "tr") {
       #
@@ -390,6 +438,11 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
       if (as.character(expr[[2]][[1]]) == "%*%") {
         # トレース内最も右のファクター
         most_right <- expr[[2]][[3]]
+        ###########################################
+        # remove ()          ######################
+        ###########################################
+        most_right <- drop_parens(most_right)
+        
         mR = deparse(most_right)
         if (debug) printm(mR, X_, mR == X_, hp)
         
@@ -400,6 +453,14 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
         invs = c(paste0("inv(", X_, ")"), paste0("Inv(", X_, ")"))
         if (debug) printm(invs, mR %in% invs)
         
+        
+        
+        # 3 cases exist. 
+        # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
+        # 2. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
+        # 3. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
+        
+        # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
         # right most factor does not contain X
         if (FreeQ(mR, X_)) {
           # S1: no X
@@ -407,14 +468,19 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
           return(0)
         }
         
-        if (mR == X_ ||  mR %in% invs  ||  hp == 1) {
+        
+        # 2. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
+        if (FreeQ(other_left, X_)) {
+          # most_right
+          
+          if (mR == X_ ||  mR %in% invs  ||  hp == 1) {
+          # if (mR == X_  ||  hp == 1) {
           # Here mR contains X or inv(X) or Hadamar product.
           # We try to apply the specific rules here.
           # It will work if the other_left does not contain X_.
           # Otherwize, use the product rule.
           #
           
-          if (FreeQ(other_left, X_)) {
             # Here, other_left does not contain X or inv(X)
             if (mR == X_) {
               # S2
@@ -430,7 +496,7 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
               # S6
               if (print) cat("S6: tr((A*X)%*%B)\n")
               # if( debug ) printm( deparse(most_right[[2]][[1]]) )
-              AA = deparse(most_right[[2]][[2]])
+              AA = deparse(most_right[[2]]) #modified##############################################
               # if( debug ) printm(mR,oL, AA)
               # if( oL == "I" ) res=paste0("diag(",AA,")")
               # else res=paste0(AA,"*t(",oL,")")
@@ -438,6 +504,69 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
             }
             return(res)
           }
+          
+          
+          
+          # Here, mR is not X_ nor inv(X_) but contains X_.
+          # must use chain rule
+
+          if (print) cat("C1: using chain rule...\n")
+
+          expr1 = deparse(expr)
+          if( debug ) printm(expr1)
+          if (debug) printm(mR, oL)
+          if (debug) show_ast(most_right)
+
+          FX = deparse(most_right[[2]])
+
+          if (debug) printm(FX)
+
+          expr1 = gsub(FX, "FX", expr1, fixed = TRUE)
+          expr1 = gsub(" ", "", expr1)
+
+          if (debug) printm(expr1)
+
+          res1 = mD0(expr1, "FX")
+
+          if (debug) printm(res1)
+
+          res1 = gsub(" ", "", res1)
+          res1FX = paste0("tr(t(", res1, ")%*%", FX, ")")
+          res1FX = gsub(" ", "", res1FX)
+
+          if (debug) printm(res1FX)
+
+          res = mD0(res1FX, X_)
+
+          if (debug) printm(res)
+
+          res1 = gsub("FX", FX, res, fixed = TRUE)
+          res1 = gsub(" ", "", res1)
+
+          if (debug) printm(res1)
+
+          return(res1)
+
+          # 
+          # #     cat("\n*** chain rule not yet available.***\n")
+          # #     res=paste0("mD0(",deparse(expr),", ",X_,")")
+          # #     return( res )
+          # 
+          
+          
+          
+          
+          
+          
+          cat("\n*** the followling mD0 is not yet available.***\n")
+          res=paste0("mD0(",deparse(expr),", ",X_,")")
+          cat(res);cat("\n\n")
+          return( res )
+
+        } # end of specific rules and chani rules
+        # 3. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
+        else{
+          
           
           # Here, mR is either X_, inv(X_) or Hadamar Prod
           # and other_left contains X_, therefor, both factors contain X_
@@ -465,54 +594,7 @@ mD0 <- function( expr, X_, print=1, debug=0 ){
           if (debug) printm("final result", "/", res)
           return(res)
           
-        } # end of specific rules and product rule
-        else{
-          # Here, mR is not X_ nor inv(X_) but contains X_.
-          # must use chain rule
-          
-          if (print) cat("C1: using chain rule...\n")
-          
-          expr1 = deparse(expr)
-          if( debug ) printm(expr1)
-          if (debug) printm(mR, oL)
-          if (debug) show_ast(most_right)
-          
-          FX = deparse(most_right[[2]])
-          
-          if (debug) printm(FX)
-          
-          expr1 = gsub(FX, "FX", expr1, fixed = TRUE)
-          expr1 = gsub(" ", "", expr1)
-          
-          if (debug) printm(expr1)
-          
-          res1 = mD0(expr1, "FX")
-          
-          if (debug) printm(res1)
-          
-          res1 = gsub(" ", "", res1)
-          res1FX = paste0("tr(t(", res1, ")%*%", FX, ")")
-          res1FX = gsub(" ", "", res1FX)
-          
-          if (debug) printm(res1FX)
-          
-          res = mD0(res1FX, X_)
-          
-          if (debug) printm(res)
-          
-          res1 = gsub("FX", FX, res, fixed = TRUE)
-          res1 = gsub(" ", "", res1)
-          
-          if (debug) printm(res1)
-          
-          return(res1)
-          
-          
-          #     cat("\n*** chain rule not yet available.***\n")
-          #     res=paste0("mD0(",deparse(expr),", ",X_,")")
-          #     return( res )
-          
-        }
+        } # end of product rule
         
       } # end of matrix product
       else{
