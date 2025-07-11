@@ -100,14 +100,19 @@ trace_reorder <- function(expr, X_, op = "%*%"){
   
   if(any(grepl(X_, symbols_current))){
     # return(glue::glue("{expr_str} + {X_}"))
-    X_index <- which(grepl(X_, symbols_current))
-   
+    # #########################################################################
+    X_index <- which(grepl(paste("\\b",X_,"\\b", sep=""), symbols_current)) ###
+    #    if( debug ) printm(symbols_current,X_index) #### 20250706cot
+    X_index=X_index[1] #### 20250706cot
+    ###########################################################################
+    #
     # process transpose
     target <- temp_current[[X_index]]
     if(is.call(target)){
       if(target[[1]]=="t"){
         # symbols_current_temp <- paste0("t(", symbols_current, ")")
-        symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
+        symbols_current_temp <- 
+          gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
         symbols_current <- symbols_current_temp[N:1]
         X_index <- N-X_index+1
       }
@@ -117,7 +122,9 @@ trace_reorder <- function(expr, X_, op = "%*%"){
       expr_str <- paste0(symbols_current, collapse = op)
       expr <- parse(text = expr_str)[[1]]
     }else{
-      expr_str <- paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], collapse = op)
+      expr_str <- 
+        paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], 
+               collapse = op)
       expr <- parse(text = expr_str)[[1]]
     }
     return(expr)
@@ -125,6 +132,50 @@ trace_reorder <- function(expr, X_, op = "%*%"){
     return(expr)
   }
 } # end of trace_reorder
+
+
+
+FreeQ <- function(expr, varname) {
+  # check if expr_str contains varname
+  # Shin-ichi Mayekawa with ChatGPT
+  # 20250706cot
+  
+  # Args:
+  #  expr: 式の文字列
+  #  varname: 文字列で指定された変数名（例: "A1"）
+  #
+  
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  found <- FALSE
+  
+  find_var <- function(e) {
+    
+    # exit
+    if (found) return(NULL)
+    
+    if (is.symbol(e)) {
+      if (as.character(e) == varname) {
+        found <<- TRUE
+      }
+    } else if (is.call(e) || is.language(e)) {
+      for (i in seq_along(e)) {
+        find_var(e[[i]])
+      }
+    }
+    return(NULL)
+    
+  } # end of find_var
+  
+  find_var(expr)
+  
+  return(!found)
+  
+} # end of FreeQ
 
 
 #' Core Function of the Symbolic Derivative of Trace w.r.t a Matrix
@@ -247,4 +298,250 @@ Dm_core <- function(expr, X_, deparse_result = FALSE){
   return(result)
   
 } # end of Dm_core
+
+
+mD0 <- function( expr, X_, print=1, debug=0 ){
+  # product rule for trace
+  # Shin-ichi Mayekawa
+  # 20250705cot,06cot,07,08
+  #
+  
+  # Given a matrix A which does not contain X,
+  # mD0 knows mD0( tr(A%*%X), X )  or  mD0( tr(A%*%inv(X)), X ).
+  #
+  # When A contains X, we must use the matrix product rule:
+  #  mD0( tr(A(X)%*%X), X ) = mD0( tr(A(Xc)%*%X), X ) + mD0( tr(A(X)%*%Xc), X )
+  # where Xc is treated as a constant free of X.
+  # The first term is easy because A(Xc) does not contain X.
+  # For the 2nd term,
+  # suppose A(X) is of the form B%*%X or B%*%inv(X) where B does not contain X.
+  # Then, mD0 knows mD0( tr(A(X)%*%Xc),X ) and accordingly, mD0(tr(A(X)%*%X),X).
+  #
+  
+  
+  
+  
+  if (is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  expr_var <- parse(text = X_)[[1]]
+  
+  result <- NULL
+  
+  if (is.call(expr)) {
+    # distribute mD0 as mD0(A+B,X) = mD0(A,X) + mD0(B,X)
+    # rule (23)
+    sums <- c("+", "-")
+    if (as.character(expr[[1]]) %in% sums) {
+      cat("mD of sum is converted to sum of mDs.\n")
+      expr[[2]] <- parse(text = mD0(expr[[2]], X_))[[1]]
+      expr[[3]] <- parse(text = mD0(expr[[3]], X_))[[1]]
+      if( debug ) show_ast(expr)
+      res = deparse(expr)
+      return(res)
+    }
+    
+    
+    
+    if (as.character(expr[[1]]) == "tr") {
+      #
+      # Here, we must distribute tr as tr(A+B) = tr(A) + tr(B).
+      # not yet ready.
+      #
+      
+      # move X_ to the right most position  (t(X_) will be taken care of.)
+      expr[[2]] <- trace_reorder(expr[[2]], X_)
+      
+      
+      ################################################################
+      ##### for Hadamar Product ######################################
+      ################################################################
+      # もう少し上手に書けるはず。
+      # 要は、* を見つけてフラグを立てることと、
+      # tr(B%*%(A*X)) の形にすること。
+      #
+      # expr cannot be:
+      #  tr(t(X)*A)
+      #
+      
+      # move X_ to the right most position  (t(X_) will be taken care of.)
+      # ただし、 "(X*A)" や "(X%*%A)" は変わらないので要注意。
+      expr[[2]] <- trace_reorder(expr[[2]], X_, op = "*")
+      
+      # change tr(A*B) or tr((A*B)) to tr(I%*%(A*B))
+      exprstr = deparse(expr)
+      exprstr = gsub(" ", "", exprstr)
+      hp = 0
+      if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
+        if( debug ) printm("input:", exprstr)
+        exprstr = gsub("^tr\\(\\(*(\\w+\\*\\w+)\\)*\\)$"
+                       , "tr\\(I%*%\\(\\1\\)\\)", exprstr)
+        #exprstr=gsub("))",")",exprstr, fixed=TRUE)
+        if( debug ) printm("after:", exprstr)
+        hp = 1
+        expr = parse(text = exprstr)[[1]]
+      }
+      ################################################################
+      ################################################################
+      
+      if (as.character(expr[[2]][[1]]) == "%*%") {
+        # トレース内最も右のファクター
+        most_right <- expr[[2]][[3]]
+        mR = deparse(most_right)
+        if (debug) printm(mR, X_, mR == X_, hp)
+        
+        # それ以外の左のファクター
+        other_left <- expr[[2]][[2]]
+        oL = deparse(other_left)
+        oL = gsub(" ", "", oL)
+        invs = c(paste0("inv(", X_, ")"), paste0("Inv(", X_, ")"))
+        if (debug) printm(invs, mR %in% invs)
+        
+        # right most factor does not contain X
+        if (FreeQ(mR, X_)) {
+          # S1: no X
+          if (print) cat("S1: tr(A)\n")
+          return(0)
+        }
+        
+        if (mR == X_ ||  mR %in% invs  ||  hp == 1) {
+          # Here mR contains X or inv(X) or Hadamar product.
+          # We try to apply the specific rules here.
+          # It will work if the other_left does not contain X_.
+          # Otherwize, use the product rule.
+          #
+          
+          if (FreeQ(other_left, X_)) {
+            # Here, other_left does not contain X or inv(X)
+            if (mR == X_) {
+              # S2
+              if (print) cat("S2: tr(A%*%X)\n")
+              res = paste0("t(", oL, ")")
+            }
+            else if (mR %in% invs) {
+              # S3.1
+              if (print) cat("S3.1: tr(A%*%inv(X))\n")
+              res = paste0("-t(inv(", X_, ")%*%", oL, "%*%inv(", X_, "))")
+            }
+            else if (hp == 1) {
+              # S6
+              if (print) cat("S6: tr((A*X)%*%B)\n")
+              # if( debug ) printm( deparse(most_right[[2]][[1]]) )
+              AA = deparse(most_right[[2]][[2]])
+              # if( debug ) printm(mR,oL, AA)
+              # if( oL == "I" ) res=paste0("diag(",AA,")")
+              # else res=paste0(AA,"*t(",oL,")")
+              res = paste0(AA, "*t(", oL, ")")
+            }
+            return(res)
+          }
+          
+          # Here, mR is either X_, inv(X_) or Hadamar Prod
+          # and other_left contains X_, therefor, both factors contain X_
+          if (print) cat("P1: using product rule.....\n")
+          if (debug) printm(mR, oL)
+          if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
+          if (debug) cat("*** processing the 1st term* ***\n")
+          
+          res1 = mD0(paste0("tr(oLc%*%", mR, ")"), X_)
+          res11 = gsub("oLc", oL, res1, fixed = TRUE)
+          res11 = gsub(" ", "", res11)
+          
+          if (debug) printm(res1, res11)
+          if (debug) cat("*** processing the 2nd term* ***\n")
+          
+          res2 = mD0(paste0("tr(", oL, "%*%Xc)"), X_)
+          res22 = gsub(" ", "", res2)
+          res22 = gsub("Xc", mR, res2)
+          
+          if (debug) printm(res2, res22)
+          
+          res = paste0(res11, "+", res22)
+          res = gsub("+-", "-", res, fixed = TRUE)
+          
+          if (debug) printm("final result", "/", res)
+          return(res)
+          
+        } # end of specific rules and product rule
+        else{
+          # Here, mR is not X_ nor inv(X_) but contains X_.
+          # must use chain rule
+          
+          if (print) cat("C1: using chain rule...\n")
+          
+          expr1 = deparse(expr)
+          if( debug ) printm(expr1)
+          if (debug) printm(mR, oL)
+          if (debug) show_ast(most_right)
+          
+          FX = deparse(most_right[[2]])
+          
+          if (debug) printm(FX)
+          
+          expr1 = gsub(FX, "FX", expr1, fixed = TRUE)
+          expr1 = gsub(" ", "", expr1)
+          
+          if (debug) printm(expr1)
+          
+          res1 = mD0(expr1, "FX")
+          
+          if (debug) printm(res1)
+          
+          res1 = gsub(" ", "", res1)
+          res1FX = paste0("tr(t(", res1, ")%*%", FX, ")")
+          res1FX = gsub(" ", "", res1FX)
+          
+          if (debug) printm(res1FX)
+          
+          res = mD0(res1FX, X_)
+          
+          if (debug) printm(res)
+          
+          res1 = gsub("FX", FX, res, fixed = TRUE)
+          res1 = gsub(" ", "", res1)
+          
+          if (debug) printm(res1)
+          
+          return(res1)
+          
+          
+          #     cat("\n*** chain rule not yet available.***\n")
+          #     res=paste0("mD0(",deparse(expr),", ",X_,")")
+          #     return( res )
+          
+        }
+        
+      } # end of matrix product
+      else{
+        cat("\n*** Cannot differentiate the input expression.***\n")
+        res = paste0("mD0(", deparse(expr), ", ", X_, ")")
+        return(res)
+        
+      } # end of sorry!
+      
+    } # end of trace function
+    else{
+      
+      # other scalar functions
+      cat("\n**** Currently, trace is the only function available.***\n")
+      res = paste0("mD0(", deparse(expr), ", ", X_, ")")
+      return(res)
+      
+    }
+    
+  } # end of is.call(expr)
+  else{
+    # expr is not a call
+    cat("\n**** expr does not have a scalar function of X.***\n")
+    res = paste0("mD0(", deparse(expr), ", ", X_, ")")
+    return(res)
+    
+    
+  } # end of non-call
+  
+} # end of mD0
+
 
