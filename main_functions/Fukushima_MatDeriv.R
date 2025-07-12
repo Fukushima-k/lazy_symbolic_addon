@@ -529,7 +529,7 @@ gsub_expr <- function(expr, object, replacement){
 #' 
 #' @export
 
-mD0 <- function( expr, X_="X", print=1, debug=0, trace_chain = 0){
+mD0 <- function( expr, X_="X", print=1, debug=0){
   # product rule for trace
   # Shin-ichi Mayekawa
   # 20250705cot,06cot,07,08
@@ -710,49 +710,59 @@ mD0 <- function( expr, X_="X", print=1, debug=0, trace_chain = 0){
 
           expr1 = deparse(expr)
           if( debug ) printm(expr1)
-          if (debug) printm(mR, oL)
+          if (debug) printm(oL, mR)
           if (debug) show_ast(most_right)
 
-          FX = deparse(most_right[[2]])
-
+          N <- length(most_right)
+          FX = deparse(most_right[[N]])
+          
+          if(N>2 & !FreeQ(most_right[[2]], X_)){
+            # C1はF(X)以外にXが影響しているので使えない。
+            cat("\n*** tr(A%*%(F(X)%*%G(X))) is not yet available.***\n")
+            res=paste0("mD0(",deparse(expr),", ",X_,")")
+            cat(res);cat("\n\n")
+            return( res )
+          }
+          
           if (debug) printm(FX)
 
           expr1 = gsub(FX, "FX", expr1, fixed = TRUE)
           expr1 = gsub(" ", "", expr1)
 
           if (debug) printm(expr1)
-
+          if (debug){
+            cat("mD0(f(F(X)), X) = tr(t(mD0(f(FX), FX)) %*% F(X))\n")
+            cat("f(FX) =", expr1, "\n")
+            cat("F(X) =", FX, "\n\n")
+          } 
+          
+          # mD0(f(FX), X)
           res1 = mD0(expr1, "FX")
-
           if (debug) printm(res1)
-
-          res1 = gsub(" ", "", res1)
-          res1FX = paste0("tr(t(", res1, ")%*%", FX, ")")
+          
+          
+          res1FX = paste0("tr(t(RES1)%*%", FX, ")")
           res1FX = gsub(" ", "", res1FX)
-
+          
           if (debug) printm(res1FX)
-
+          
           res = mD0(res1FX, X_)
-
+          
           if (debug) printm(res)
-
-          res1 = gsub("FX", FX, res, fixed = TRUE)
+          
+          res1 = gsub("RES1", res1, res, fixed = TRUE)
+          res1 = gsub("FX", FX, res1, fixed = TRUE)
           res1 = gsub(" ", "", res1)
-
+          
           if (debug) printm(res1)
-
+          
           return(res1)
-
+          
           # 
           # #     cat("\n*** chain rule not yet available.***\n")
           # #     res=paste0("mD0(",deparse(expr),", ",X_,")")
           # #     return( res )
           # 
-          
-          
-          
-          
-          
           
           cat("\n*** the followling mD0 is not yet available.***\n")
           res=paste0("mD0(",deparse(expr),", ",X_,")")
@@ -764,31 +774,48 @@ mD0 <- function( expr, X_="X", print=1, debug=0, trace_chain = 0){
         else{
           
           
+          
           # Here, mR is either X_, inv(X_) or Hadamar Prod
           # and other_left contains X_, therefor, both factors contain X_
           if (print) cat("P1: using product rule.....\n")
+          if (debug) cat("mD0(tr(oL %*% mR)) = mD0(tr(oL %*% mRc)) + mD0(tr(oLc %*% mR))\n")
           if (debug) printm(mR, oL)
-          if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
+          # first_term <- second_term <- call("mD0", expr, as.symbol(X_))
+          # first_term[[2]][[2]][[3]] <- as.symbol("mRc")
+          # second_term[[2]][[2]][[2]] <- as.symbol("oLc")
+          first_term <- second_term <- expr
+          first_term[[2]][[3]] <- as.symbol("mRc")
+          second_term[[2]][[2]] <- as.symbol("oLc")
+          if (debug) cat("the 1st term of P1 is: mD0(", deparse(first_term), ",", X_, ")\n")
+          if (debug) cat("the 2nd term of P1 is: mD0(", deparse(second_term),",", X_, ")\n")
+          # if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
+          # if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
           if (debug) cat("*** processing the 1st term* ***\n")
           
-          res1 = mD0(paste0("tr(oLc%*%", mR, ")"), X_)
-          res11 = gsub("oLc", oL, res1, fixed = TRUE)
-          res11 = gsub(" ", "", res11)
+          
+          
+          res1 = mD0(deparse(first_term), X_)
+          res11 = gsub_expr(res1, "mRc", mR)
+          # res11 = gsub("mRc", mR, res1, fixed = TRUE)
+          # res11 = gsub(" ", "", res11)
           
           if (debug) printm(res1, res11)
           if (debug) cat("*** processing the 2nd term* ***\n")
           
-          res2 = mD0(paste0("tr(", oL, "%*%Xc)"), X_)
-          res22 = gsub(" ", "", res2)
-          res22 = gsub("Xc", mR, res2)
+          res2 =  mD0(deparse(second_term), X_)
+          res22 = gsub_expr(res2, "oLc", oL)
+          # res22 = gsub("oLc", oL, res2)
+          # res22 = gsub(" ", "", res22)
           
           if (debug) printm(res2, res22)
           
-          res = paste0(res11, "+", res22)
-          res = gsub("+-", "-", res, fixed = TRUE)
+          # res = paste0(res11, "+", res22)
+          res = call("+", res11, res22)
+          # res = gsub("+-", "-", res, fixed = TRUE)
+          res = reduce_expr_sign(res)
           
           if (debug) printm("final result", "/", res)
-          return(res)
+          return(deparse(res, width.cutoff = 500))
           
         } # end of product rule
         
