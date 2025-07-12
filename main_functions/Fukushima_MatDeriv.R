@@ -2,10 +2,20 @@
 #'
 #' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
 #'
+#' @examples
+#' # example code
+#' decompose_MatProd("A%*%B%*%C%*%D%*%E", "%*%")
+#' decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
+#' decompose_MatProd("a+b-c+d+e", c("-", "+"), TRUE)
+#' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), TRUE)
+#' decompose_MatProd("a+b-+e", c("-", "+"), TRUE)
+#' decompose_MatProd("a+b--e", c("-", "+"), TRUE)
+#' decompose_MatProd("+a++b--c+-d-+e", c("-", "+"), TRUE)
+#'
 #' @export
 #'
 
-decompose_MatProd <- function(expr, op){
+decompose_MatProd <- function(expr, op, return_op = FALSE){
   
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
@@ -13,6 +23,7 @@ decompose_MatProd <- function(expr, op){
       return(NULL)
     })
   
+  ops <- NULL
   temp_past <- list(expr)
   continue <- TRUE
   
@@ -26,8 +37,9 @@ decompose_MatProd <- function(expr, op){
         # } else if (is.numeric(expr)) {
         #   return(expr)
       } else if (is.call(expr)) {
-        if(expr_temp[[1]] == op) {
+        if((as.character(expr_temp[[1]]) %in% op) & length(expr_temp)>2) {
           temp_current <- c(temp_current, expr_temp[[2]],  expr_temp[[3]])
+          ops <- c(ops, as.character(expr_temp[[1]]))
           continue <-TRUE
         }else{
           temp_current <- c(temp_current, expr_temp)
@@ -38,8 +50,65 @@ decompose_MatProd <- function(expr, op){
     # temp_current %>% print()
   }
   
-  temp_current
+  ops <- rev(ops)
+  if(return_op){
+    list(terms = temp_current, ops = ops)
+  }else{
+    temp_current
+  }
 } # end of decompose_MatProd
+
+
+#' compose MatProd
+#' 
+#' @examples
+#' # example code
+#' terms <- decompose_MatProd("A%*%B%*%C%*%D%*%E", "%*%")
+#' compose_MatProd(terms, "%*%")
+#' 
+#' terms <- decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
+#' compose_MatProd(terms, "*")
+#' 
+#' terms <- decompose_MatProd("a+b-c+d+e", c("-", "+"), TRUE)
+#' compose_MatProd(terms$terms, terms$ops)
+#' compose_MatProd(terms)
+#' 
+#' terms <- decompose_MatProd("a+b-(c+d)+e", c("-", "+"), TRUE)
+#' compose_MatProd(terms$terms, terms$ops)
+#' compose_MatProd(terms)
+#' 
+#' 
+
+compose_MatProd <- function(terms, op){
+  if(!is.null(terms$ops) & missing(op)){
+    op <- terms$ops
+  }
+  if(!is.null(terms$terms)){
+    terms <- terms$terms
+  } 
+  
+  if(length(op) == 1){
+    op <- rep(op, length(terms)-1)
+  }
+  if(length(op) != (length(terms)-1))
+    stop("length(op) must be 1 or length(terms)-1")
+  
+  
+  past_terms <- terms
+  past_op <- op
+  while(length(past_terms) != 1){
+    past_terms <-
+      c(
+      call(past_op[1], past_terms[[1]],  past_terms[[2]]),
+      past_terms[-(1:2)])
+    past_op <- past_op[-1]
+    # print(past_terms);print(past_op)
+  }
+  
+  return(past_terms[[1]])
+}
+
+
 
 
 #' Simplify Power
