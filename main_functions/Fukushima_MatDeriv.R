@@ -233,7 +233,7 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
     }
     if(op == "both") op = "%*%"
     
-    temp_current <- decompose_MatProd(expr, op) 
+    temp_current <- decompose_MatProd(expr, op, target_X = X_) 
     N <- length(temp_current)
     symbols_current <- as.character(temp_current)
     
@@ -248,26 +248,6 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
       
       # if(op == "%*%"){
       target <- temp_current[[X_index]]
-      
-      # is drop parens
-      target_temp <- drop_parens(target)
-      if(is.call(target_temp)){
-        if(target_temp[[1]] == op){
-          terms_in_target <- decompose_MatProd(target_temp, op)
-          temp_current[[X_index]] <- terms_in_target
-          temp_current <- temp_current %>% unlist()
-          
-          N <- length(temp_current)
-          symbols_current <- as.character(temp_current)
-          
-          X_index_in_target <-
-            which(grepl(paste("\\b",X_,"\\b", sep=""), as.character(terms_in_target)))
-          X_index_in_target <- X_index_in_target[1]
-          X_index <- X_index  + X_index_in_target - 1
-          
-          target <- temp_current[[X_index]]
-        }
-      }# 現状は再帰できていない。
       
       # is target transpose 
       # if(deparse(target)  %in% paste0("t(", X_, ")")){

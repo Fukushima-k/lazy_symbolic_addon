@@ -199,8 +199,8 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("A*(X*B)*C", "X"),       easy_parse("B  *  C  *  A   *  X "))
   expect_equal(trace_reorder("A%*%(X*B)%*%C", "X"),   easy_parse("C %*% A %*% (B  *  X)"))
   expect_equal(trace_reorder("A*(X%*%B)*C", "X"),     easy_parse("C  *  A  *  (X %*% B)")) # この場合は、どう処理をするべきか。
-  
-  trace_reorder("A%*%B%*%(F%*%((E%*%(X%*%C))%*%D))", "X") # 現状は、()外しは再帰的ではない。
+  expect_equal(trace_reorder("A%*%B%*%(F%*%((E%*%(X%*%C))%*%D))", "X") , easy_parse("C %*% D %*% A %*% B %*% F %*% E %*% X"))
+  expect_equal(trace_reorder("(A%*%B)%*%(X%*%C)", "X") , easy_parse("C %*% (A %*% B) %*% X"))
   # decompose_parensの中に取り入れるべきでは？
      
   decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
