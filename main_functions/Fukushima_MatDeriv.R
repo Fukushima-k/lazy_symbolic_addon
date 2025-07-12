@@ -6,16 +6,25 @@
 #' # example code
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "%*%")
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
-#' decompose_MatProd("a+b-c+d+e", c("-", "+"), TRUE)
-#' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), TRUE)
-#' decompose_MatProd("a+b-+e", c("-", "+"), TRUE)
-#' decompose_MatProd("a+b--e", c("-", "+"), TRUE)
-#' decompose_MatProd("+a++b--c+-d-+e", c("-", "+"), TRUE)
+#' decompose_MatProd("a+b-c+d+e", c("-", "+"), return_op = TRUE)
+#' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), return_op =  TRUE)
+#' decompose_MatProd("a+b--e", c("-", "+"),  return_op =  TRUE)
+#' decompose_MatProd("a+b-+e", c("-", "+"),  return_op =  TRUE)
+#' decompose_MatProd("+a++b--c+-d-+e", c("-", "+"),  return_op =  TRUE)
+#' 
+#' decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
+#' decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
+#' decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)
+#' 
+#' 
+#' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
+#' decompose_MatProd("A+(B+C)+((X+D)+E)", "+", target_X = "X")
 #'
 #' @export
 #'
 
-decompose_MatProd <- function(expr, op, return_op = FALSE){
+decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_X){
   
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
@@ -49,8 +58,42 @@ decompose_MatProd <- function(expr, op, return_op = FALSE){
     temp_past <- temp_current
     # temp_current %>% print()
   }
-  
   ops <- rev(ops)
+  
+  
+  continue <- TRUE
+  while(continue){
+    continue <- FALSE
+    i_range <- 1
+    if(flat & missing(target_X)){
+      # i <- 1
+      # while(i <= length(temp_current)){
+      i_range <- seq_along(temp_current)  
+    }
+    if(!missing(target_X)){
+      i <-which(grepl(paste("\\b",target_X,"\\b", sep=""), as.character(temp_current)))
+      i_range <- i[1] # i_range must be 1 length
+    }
+    for(i in i_range){
+      if(is.call(temp_current[[i]]))
+        if(temp_current[[i]][[1]] == "(")
+          if(as.character(temp_current[[i]][[2]][[1]]) %in% op){
+            continue <- TRUE
+            additional_op = as.character(temp_current[[i]][[2]][[1]])
+            temp_current[[i]] <- c(temp_current[[i]][[2]][[2]], temp_current[[i]][[2]][[3]])
+            temp_current <- unlist(temp_current)
+            
+            ops <- as.list(ops)
+            if(i > length(ops)) {
+              ops <- c(ops, additional_op)
+            }else{
+              ops[[i]] <- list(additional_op, ops[[i]])
+            }
+            ops <- ops %>% unlist()
+          }
+    }
+  }
+  
   if(return_op){
     list(terms = temp_current, ops = ops)
   }else{
@@ -192,7 +235,6 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
     
     temp_current <- decompose_MatProd(expr, op) 
     N <- length(temp_current)
-    # if(N>1) temp_current <- temp_current %>% lapply(trace_reorder, X_, op = "*") 
     symbols_current <- as.character(temp_current)
     
     if(any(grepl(X_, symbols_current))){
@@ -207,6 +249,26 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
       # if(op == "%*%"){
       target <- temp_current[[X_index]]
       
+      # is drop parens
+      target_temp <- drop_parens(target)
+      if(is.call(target_temp)){
+        if(target_temp[[1]] == op){
+          terms_in_target <- decompose_MatProd(target_temp, op)
+          temp_current[[X_index]] <- terms_in_target
+          temp_current <- temp_current %>% unlist()
+          
+          N <- length(temp_current)
+          symbols_current <- as.character(temp_current)
+          
+          X_index_in_target <-
+            which(grepl(paste("\\b",X_,"\\b", sep=""), as.character(terms_in_target)))
+          X_index_in_target <- X_index_in_target[1]
+          X_index <- X_index  + X_index_in_target - 1
+          
+          target <- temp_current[[X_index]]
+        }
+      }# 現状は再帰できていない。
+      
       # is target transpose 
       # if(deparse(target)  %in% paste0("t(", X_, ")")){
       if(deparse(target) == paste0("t(", X_, ")")){
@@ -214,28 +276,41 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
         transposed = TRUE
       }else if(N>1){
         # reorder target factor
-        target_temp <- trace_reorder(target, X_, attr = TRUE)
+        target_temp <- trace_reorder(target, X_, op = "*", attr = TRUE)
         target <- target_temp$expr
         transposed <- target_temp$transposed
-        symbols_current[[X_index]] <- deparse(target)
+        temp_current[[X_index]] <- target
       }
       
+      add_transpose <- function(expr){
+        if(is.call(expr)){
+          if(expr[[1]] == "t"){
+            return(expr[[2]])
+          }
+        }
+        return(call("t", expr))
+      }
       # process transpose
       if(transposed){
-        # symbols_current[[X_index]] <- deparse(trace_reorder(target, X_))
-        symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
-        symbols_current_temp[[X_index]] <- deparse(target)
-        symbols_current <- symbols_current_temp[N:1]
+        # symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
+        # symbols_current_temp[[X_index]] <- deparse(target)
+        # symbols_current <- symbols_current_temp[N:1]
+        temp_current <- lapply(temp_current, add_transpose)
+        temp_current[[X_index]] <- target
+        temp_current <- temp_current[N:1]
         X_index <- N-X_index+1
       }
       # }
       
       if(X_index == N){
-        expr_str <- paste0(symbols_current, collapse = op)
-        expr <- parse(text = expr_str)[[1]]
+        expr <- compose_MatProd(temp_current, op)
+        # expr_str <- paste0(symbols_current, collapse = op)
+        # expr <- parse(text = expr_str)[[1]]
       }else{
-        expr_str <- paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], collapse = op)
-        expr <- parse(text = expr_str)[[1]]
+        
+        expr <- compose_MatProd(temp_current[c((X_index+1):length(symbols_current), 1:X_index)], op)
+        # expr_str <- paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], collapse = op)
+        # expr <- parse(text = expr_str)[[1]]
       }
     }
     
@@ -613,16 +688,87 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           df1_factor <- expr
         if(f1_op == "log")
           df1_factor <- call("/", 1, expr[[2]])
-      }else{
-        if (print) cat("rule(26): the chain rule......")
-        if (print) cat("In general, rule(26) is not yet available.")
-        df1_factor <- parse(text="df1(f2)/df2")[[1]]
+        
+        df2_factor <- mD0(expr[[2]], X_)
+        res = call("*", df1_factor, parse(text=df2_factor)[[1]])
+        res = deparse(res)
+        return(res)
       }
-      df2_factor <- mD0(expr[[2]], X_)
-      res = call("*", df1_factor, parse(text=df2_factor)[[1]])
-      res = deparse(res)
-      return(res)
+      # else{
+      #   if (print) cat("rule(26): the chain rule......")
+      #   if (print) cat("In general, rule(26) is not yet available.")
+      #   df1_factor <- parse(text="df1(f2)/df2")[[1]]
+      #   df2_factor <- mD0(expr[[2]], X_)
+      #   res = call("*", df1_factor, parse(text=df2_factor)[[1]])
+      #   res = deparse(res)
+      #   return(res)
+      # }
     }
+    
+    
+    
+    if(0){
+      # 開発中領域#########################################################################################
+      
+      if (print) cat("C1: using chain rule for all ...\n")
+      
+      expr1 = deparse(expr)
+      if( debug ) printm(expr1)
+      if (debug) printm(oL, mR)
+      if (debug) show_ast(most_right)
+      
+      N <- length(most_right)
+      FX = deparse(most_right[[N]])
+      
+      if(N>2 & !FreeQ(most_right[[2]], X_)){
+        # C1yはF(X)以外にXが影響しているので使えない。
+        cat("\n*** tr(A%*%(F(X)%*%G(X))) is not yet available.***\n")
+        res=paste0("mD0(",deparse(expr),", ",X_,")")
+        cat(res);cat("\n\n")
+        return( res )
+      }
+      
+      if (debug) printm(FX)
+      
+      expr1 = gsub(FX, "FX", expr1, fixed = TRUE)
+      expr1 = gsub(" ", "", expr1)
+      
+      if (debug) printm(expr1)
+      if (debug){
+        cat("mD0(f(F(X)), X) = tr(t(mD0(f(FX), FX)) %*% F(X))\n")
+        cat("f(FX) =", expr1, "\n")
+        cat("F(X) =", FX, "\n\n")
+      } 
+      
+      # mD0(f(FX), X)
+      res1 = mD0(expr1, "FX")
+      if (debug) printm(res1)
+      
+      
+      res1FX = paste0("tr(t(RES1)%*%", FX, ")")
+      res1FX = gsub(" ", "", res1FX)
+      
+      if (debug) printm(res1FX)
+      
+      res = mD0(res1FX, X_)
+      
+      if (debug) printm(res)
+      
+      res1 = gsub("RES1", res1, res, fixed = TRUE)
+      res1 = gsub("FX", FX, res1, fixed = TRUE)
+      res1 = gsub(" ", "", res1)
+      
+      if (debug) printm(res1)
+      
+      return(res1)
+    }
+    
+    
+    
+    
+    
+    
+    
     
       
     if (as.character(expr[[1]]) == "tr") {
@@ -687,17 +833,15 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         invs <- paste0(c("inv", "Inv", "ginv", "Ginv"), 
                        "(", X_, ")")
         if (debug) printm(invs, mR %in% invs)
-        
-        
+
+        # Hadamar の特定公式フラグ        
         most_right_temp <- drop_parens(most_right)
-        
         if(is.call(most_right_temp))
         if(length(most_right_temp)>2){
           if(most_right_temp[[1]] == "*" &  most_right_temp[[3]]==X_){
             hp = 1
           }
         }
-        
         
         # 2 cases exist. 
         # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
@@ -707,12 +851,6 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         # 全体に含まれていないことはif(FreeQ(expr, X_))で確認済みなので不要
         # FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) -> TRUE
         # trace_reorderが正しく機能している限り、X_が含まれているなら必ずmR存在。
-        # if (FreeQ(mR, X_)) {
-        #   # S1: no X
-        #   if (print) cat("S1: tr(A)\n")
-        #   return("O")
-        # }
-        
         
         # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
         if (FreeQ(other_left, X_)) {
@@ -753,11 +891,6 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             return(res)
           }
           
-          
-          
-          
-          
-          
           expr1 = deparse(expr)
           N <- length(most_right)
           if(N>2 & !FreeQ(most_right[[2]], X_) & most_right[[1]]=="*"){
@@ -790,12 +923,6 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             res <- reduce_expr_sign(res_temp)
             return(deparse(res))
           }
-          
-          
-          
-          
-          
-          
           # Here, mR is not X_ nor inv(X_) but contains X_.
           # must use chain rule
 
@@ -914,6 +1041,19 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         
       } # end of matrix product
       else{
+        default_expr <-  deparse(expr)
+        expr[[2]] <- call("%*%", as.symbol("I"), expr[[2]])
+
+        res <- mD0(expr, X_)
+        if(!grepl("mD0", res)){
+          if(print) cat("\nTechnic: add I %*% \n")
+          if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+
+          clean_I <- function(expr){return(expr)} # 開発予定
+
+          return(clean_I(res))
+        }
+        
         cat("\n*** Cannot differentiate the input expression.***\n")
         res = paste0("mD0(", deparse(expr), ", ", X_, ")")
         return(res)
@@ -947,8 +1087,6 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     cat("\n**** expr does not have a scalar function of X.***\n")
     res = paste0("mD0(", deparse(expr), ", ", X_, ")")
     return(res)
-    
-    
   } # end of non-call
   
 } # end of mD0

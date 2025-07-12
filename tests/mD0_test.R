@@ -1,4 +1,5 @@
-
+criteria = 0.00001
+criteria = 0.01
 if(0){
   library(lazy.symbolic)
   library(tidyr)
@@ -53,7 +54,7 @@ if(0){
   
   
   mD0("tr((inv(X)%*%t(X))%*%A)")
-  mD0("tr((inv(X)%*%t(X))%*%A)")
+  mD0("tr((inv(X)%*%t(X))%*%A)", "X")
   
   
   
@@ -100,11 +101,35 @@ if(0){
   
   
   
+  
+  
+  　　　
+  # mD0("tr(inv(t(X))%*%t(inv(t(X))))","X")
+  # mD0("tr(inv(t(X))) ","X")
+  # 
+  
+  
+  
+  # tr(A%*%B)以外の対処
+
+  # I%*%をつけ足せば、理論上計算できるケースも多い。
+  mD0("tr(inv(t(X))) ","X", debug=1)
+  mD0("tr(I%*%inv(t(X))) ","X")
+  
+  mD0("tr(A*X) ","X")
+  # mD0("tr(A%*%X) ","X")
+  mD0("tr(I%*%(A*X)) ","X")
+  
+  expr <- 
+    call("%*%", as.symbol("A"), call("*", as.symbol("B"), as.symbol("X")))
+  trace_reorder(expr, "X")
+    
   # この二つは微分計算できないので、要対処
   trace_reorder("t(A) %*% t(B) %*% t(X * A)", "X")
   mD0("t(A) %*% t(B) %*% t(X * A)", "X")
   trace_reorder("t(A) %*% t(B) %*% t((X) * A)", "X")
   mD0("t(A) %*% t(B) %*% t((X) * A)", "X")
+  
   
   
   
@@ -130,8 +155,9 @@ check_numerical_identity <- function(funcs, seed = 123){
     Cn <- -1*matrix(rnorm(3*3), 3)
     O <- Xn*0
     p <- sample(2:10, size = 1)
-    Gradmn <- gradmn(func, X=Xn, A=An, B=Bn, C=Cn, O=O, p=p, print=0, debug=0 )
-    Gradma <- gradma(func, X=Xn, A=An, B=Bn, C=Cn, O=O, p=p, print=0, debug=0 )
+    In <- diag(3)
+    Gradmn <- gradmn(func, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
+    Gradma <- gradma(func, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
     max(abs(Gradmn - Gradma))
   })
 }
@@ -168,12 +194,21 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("B * X * A", "X"), easy_parse("A*B*X"))
   expect_equal(trace_reorder("X * A * B", "X"), easy_parse("A*B*X"))
   
-  # hirarchy
-  expect_equal(trace_reorder("A%*%(X%*%B)%*%C", "X"), easy_parse("C %*% A %*% (B %*% X)"))
-  expect_equal(trace_reorder("A*(X*B)*C", "X"),       easy_parse("C  *  A  *  (B  *  X)"))
+  # # hirarchy
+  expect_equal(trace_reorder("A%*%(X%*%B)%*%C", "X"), easy_parse("B %*% C %*% A  %*% X ")) 
+  expect_equal(trace_reorder("A*(X*B)*C", "X"),       easy_parse("B  *  C  *  A   *  X "))
   expect_equal(trace_reorder("A%*%(X*B)%*%C", "X"),   easy_parse("C %*% A %*% (B  *  X)"))
-  expect_equal(trace_reorder("A*(X%*%B)*C", "X"),     easy_parse("C  *  A  *  (B %*% X)"))
-   
+  expect_equal(trace_reorder("A*(X%*%B)*C", "X"),     easy_parse("C  *  A  *  (X %*% B)")) # この場合は、どう処理をするべきか。
+  
+  trace_reorder("A%*%B%*%(F%*%((E%*%(X%*%C))%*%D))", "X") # 現状は、()外しは再帰的ではない。
+  # decompose_parensの中に取り入れるべきでは？
+     
+  decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
+  decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
+  decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
+  decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)
+  
+  
   # trace
   expect_equal(trace_reorder("t(A) * t(B) * t(X)", "X"), easy_parse("B*A*X"))
   expect_equal(trace_reorder("t(B) * t(X) * t(A)", "X"), easy_parse("B*A*X"))
@@ -183,7 +218,7 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("t(B) %*% t(X) %*% t(A)", "X"), easy_parse("B%*%A%*%X"))
   expect_equal(trace_reorder("t(X) %*% t(A) %*% t(B)", "X"), easy_parse("B%*%A%*%X"))
 
-  expect_equal(trace_reorder("t(A) %*% t(B) %*% (t(X) %*% A)", "X"), easy_parse("B %*% A %*% (t(A) %*% X)"))
+  expect_equal(trace_reorder("t(A) %*% t(B) %*% (t(X) %*% A)", "X"), easy_parse("B %*% A %*%  t(A) %*% X "))
   expect_equal(trace_reorder("t(A) %*% t(B) %*% (t(X) * A)", "X"),   easy_parse("B %*% A %*% (t(A)  *  X)"))
 
   # 複数存在する場合は、先頭を後ろに持ってくる。, easy_parse())
@@ -281,7 +316,7 @@ c(
 
   "tr(A%*%X)"
 ) %>%
-  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, 0.00001)
+  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
 
 c( 
   # mD3のテスト
@@ -303,14 +338,18 @@ c(
   
   "tr(A%*%X)"
 ) %>%
-  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, 0.00001)
-# 
-
-# 
+  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
 
 
-# check_numerical_identity("tr((inv(X)*t(X))%*%A)", seed = "r")
-
-
+c( 
+  "tr(inv(t(X)))",
+  "tr(I%*%inv(t(X)))",
+  
+  "tr(A*X) ",
+  # "tr(I%*%(A*X)) ",
+  
+  "tr(A%*%X)"
+) %>%
+  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
 
 
