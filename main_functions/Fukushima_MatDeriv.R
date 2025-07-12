@@ -152,55 +152,105 @@ simplify_power <- function(expr){
 #'
 #' @export
 #'
+#'
+#'
 
-trace_reorder <- function(expr, X_, op = "%*%"){
+trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
   # X_ become most right side
-  
+  op = match.arg(op)
   
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
       return(NULL)
     })
+  transposed = FALSE
   
-  temp_current <- decompose_MatProd(expr, op)
-  symbols_current <- as.character(temp_current)
-  N <- length(symbols_current)
-  
-  if(any(grepl(X_, symbols_current))){
-    # return(glue::glue("{expr_str} + {X_}"))
-    # #########################################################################
-    X_index <- which(grepl(paste("\\b",X_,"\\b", sep=""), symbols_current)) ###
-    #    if( debug ) printm(symbols_current,X_index) #### 20250706cot
-    X_index=X_index[1] #### 20250706cot
-    ###########################################################################
-    #
-    # process transpose
-    target <- temp_current[[X_index]]
-    if(is.call(target)){
-      if(target[[1]]=="t"){
-        # symbols_current_temp <- paste0("t(", symbols_current, ")")
-        symbols_current_temp <- 
-          gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
+  if(is.call(expr)){
+    exchange_ops <- c("t")
+    ignore_ops <- c("(", "tr")
+    ignore_op <- NULL
+    
+    if(as.character(expr[[1]]) %in% ignore_ops){
+      ignore_op <- as.character(expr[[1]])
+      expr <- expr[[2]]
+    }
+    expr <- drop_parens(expr)
+    
+    
+    grepl("C", as.character(expr))
+    as.character(expr) %in% "C"
+    # if(deparse(expr) %in% paste0("t(", X_, ")"))
+    
+    
+    if(op == "both" & is.call(expr)){
+      if(as.character(expr[[1]]) %in% c("%*%", "*")){
+        op = as.character(expr[[1]])
+      }
+    }
+    if(op == "both") op = "%*%"
+    
+    temp_current <- decompose_MatProd(expr, op) 
+    N <- length(temp_current)
+    # if(N>1) temp_current <- temp_current %>% lapply(trace_reorder, X_, op = "*") 
+    symbols_current <- as.character(temp_current)
+    
+    if(any(grepl(X_, symbols_current))){
+      # return(glue::glue("{expr_str} + {X_}"))
+      # #########################################################################
+      X_index <- which(grepl(paste("\\b",X_,"\\b", sep=""), symbols_current)) ###
+      #    if( debug ) printm(symbols_current,X_index) #### 20250706cot
+      X_index=X_index[1] #### 20250706cot
+      ###########################################################################
+      #
+      
+      # if(op == "%*%"){
+      target <- temp_current[[X_index]]
+      
+      # is target transpose 
+      # if(deparse(target)  %in% paste0("t(", X_, ")")){
+      if(deparse(target) == paste0("t(", X_, ")")){
+        target <- as.symbol(X_)
+        transposed = TRUE
+      }else if(N>1){
+        # reorder target factor
+        target_temp <- trace_reorder(target, X_, attr = TRUE)
+        target <- target_temp$expr
+        transposed <- target_temp$transposed
+        symbols_current[[X_index]] <- deparse(target)
+      }
+      
+      # process transpose
+      if(transposed){
+        # symbols_current[[X_index]] <- deparse(trace_reorder(target, X_))
+        symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
+        symbols_current_temp[[X_index]] <- deparse(target)
         symbols_current <- symbols_current_temp[N:1]
         X_index <- N-X_index+1
       }
+      # }
+      
+      if(X_index == N){
+        expr_str <- paste0(symbols_current, collapse = op)
+        expr <- parse(text = expr_str)[[1]]
+      }else{
+        expr_str <- paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], collapse = op)
+        expr <- parse(text = expr_str)[[1]]
+      }
     }
     
-    if(X_index == N){
-      expr_str <- paste0(symbols_current, collapse = op)
-      expr <- parse(text = expr_str)[[1]]
-    }else{
-      expr_str <- 
-        paste0(symbols_current[c((X_index+1):length(symbols_current), 1:X_index)], 
-               collapse = op)
-      expr <- parse(text = expr_str)[[1]]
+    if(!is.null(ignore_op)){
+      expr <- call(ignore_op, expr)
     }
-    return(expr)
+  }
+  
+  if(attr){
+    return(list(expr=expr, transposed = transposed))
   }else{
     return(expr)
   }
-} # end of trace_reorder
+} # end of general_reorder
+
 
 
 
