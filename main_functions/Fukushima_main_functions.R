@@ -31,6 +31,7 @@
 #' sexpr <- mat2sum( "A%*%B+C" )
 #' printm(sexpr)
 #' sexpr_tex <- to_latex( sexpr, mat2sum=TRUE )
+#' to_latex("mD0(tr(X%*%B), X)", print_html=T)
 #'
 #' \dontrun{
 #' library(htmltools)
@@ -268,6 +269,11 @@ to_latex_core <- function(expr_str, dollar = TRUE,
         
         # 追加終了
         
+      } else if (op == "mD0"){
+        return(paste0("\\frac{",
+                      "\\partial ",rec_convert(e[[2]]),"}{",
+                      "\\partial ",rec_convert(e[[3]]),"}"
+               ))
       } else if(op %in% undefined_macro){
         
         args <- sapply(as.list(e[-1]), rec_convert)
