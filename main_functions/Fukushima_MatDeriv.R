@@ -402,7 +402,84 @@ Dm_core <- function(expr, X_, deparse_result = FALSE){
 } # end of Dm_core
 
 
-mD0 <- function( expr, X_="X", print=1, debug=0 ){
+
+
+
+
+#' reduce_sign in expression
+#' 
+#' @examples
+#' reduce_expr_sign("A+B+-C")
+#' reduce_expr_sign("A+B+C")
+#' reduce_expr_sign("-A+B+C")
+#' reduce_expr_sign("A")
+#' reduce_expr_sign("-A-+B")
+#' reduce_expr_sign("-A--B")
+#' reduce_expr_sign("-A+-B")
+#' reduce_expr_sign("-A++B")
+#' 
+#' 
+
+reduce_expr_sign <- function(expr){
+  temp <- decompose_MatProd(expr, op = c("+", "-"), return_op = TRUE)
+  # compose_MatProd(temp)
+  
+  if(length(temp$terms) == 1) return(temp$terms[[1]])
+  for(i in 2:length(temp$terms)){
+    if(is.call(temp$terms[[i]])){
+      if(as.character(temp$terms[[i]][[1]]) %in% c("+", "-")){
+        sign_temp <- temp$terms[[i]][[1]]
+        temp$terms[[i]] <- temp$terms[[i]][[2]]
+        temp$ops[[i - 1]] <- ifelse(temp$ops[[i - 1]]==sign_temp, "+", "-")
+      }
+    }
+  }
+    
+  compose_MatProd(temp)
+}
+
+
+#' gsub for expr
+#'
+#'
+
+
+gsub_expr <- function(expr, object, replacement){
+  
+  for(expr_name in c("expr", "object", "replacement")){
+    expr_temp <- eval(parse(text=expr_name))
+    if (is.character(expr_temp)){
+      assign(expr_name, 
+             tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
+               warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
+               return(NULL)
+             })
+             )
+    }
+  }
+  
+  if(is.call(expr)){
+    N <- length(expr)
+    for(i in 2:N){
+      expr[[i]] <- gsub_expr(expr[[i]], object, replacement)
+    }
+  }
+
+  if(expr == object){
+    expr <- replacement
+  }else{
+    expr <- expr
+  }
+  return(expr)
+}# end of gsub_expr
+
+
+
+#' 
+#' 
+#' @export
+
+mD0 <- function( expr, X_="X", print=1, debug=0, trace_chain = 0){
   # product rule for trace
   # Shin-ichi Mayekawa
   # 20250705cot,06cot,07,08
