@@ -633,7 +633,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       # move X_ to the right most position  (t(X_) will be taken care of.)
       expr[[2]] <- trace_reorder(expr[[2]], X_)
-      
+      if(debug) cat("reordered trace: ", deparse(expr), "\n\n")
       
       ################################################################
       ##### for Hadamar Product ######################################
@@ -648,21 +648,24 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       # move X_ to the right most position  (t(X_) will be taken care of.)
       # ただし、 "(X*A)" や "(X%*%A)" は変わらないので要注意。
-      expr[[2]] <- trace_reorder(expr[[2]], X_, op = "*")
+      # expr[[2]] <- trace_reorder(expr[[2]], X_, op = "*")
       
       # change tr(A*B) or tr((A*B)) to tr(I%*%(A*B))
-      exprstr = deparse(expr)
-      exprstr = gsub(" ", "", exprstr)
       hp = 0
-      if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
-        if( debug ) printm("input:", exprstr)
-        exprstr = gsub("^tr\\(\\(*(\\w+\\*\\w+)\\)*\\)$"
-                       , "tr\\(I%*%\\(\\1\\)\\)", exprstr)
-        #exprstr=gsub("))",")",exprstr, fixed=TRUE)
-        if( debug ) printm("after:", exprstr)
-        hp = 1
-        expr = parse(text = exprstr)[[1]]
-      }
+      if(0){
+        exprstr = deparse(expr)
+        exprstr = gsub(" ", "", exprstr)
+        if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
+          if( debug ) printm("input:", exprstr)
+          exprstr = gsub("^tr\\(\\(*(\\w+\\*\\w+)\\)*\\)$"
+                         , "tr\\(I%*%\\(\\1\\)\\)", exprstr)
+          #exprstr=gsub("))",")",exprstr, fixed=TRUE)
+          if( debug ) printm("after:", exprstr)
+          hp = 1
+          expr = parse(text = exprstr)[[1]]
+        } 
+      } # 代わりに下の部分で評価
+      
       ################################################################
       ################################################################
       
@@ -766,7 +769,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           FX = deparse(most_right[[N]])
           
           if(N>2 & !FreeQ(most_right[[2]], X_)){
-            # C1はF(X)以外にXが影響しているので使えない。
+            # C1yはF(X)以外にXが影響しているので使えない。
             cat("\n*** tr(A%*%(F(X)%*%G(X))) is not yet available.***\n")
             res=paste0("mD0(",deparse(expr),", ",X_,")")
             cat(res);cat("\n\n")
