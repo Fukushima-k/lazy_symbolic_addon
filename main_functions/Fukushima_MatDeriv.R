@@ -755,6 +755,47 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           
           
           
+          
+          
+          
+          expr1 = deparse(expr)
+          N <- length(most_right)
+          if(N>2 & !FreeQ(most_right[[2]], X_) & most_right[[1]]=="*"){
+            if (print) cat("P2: using product rule...\n")
+            
+            # expr1 = deparse(expr)
+            if( debug ) printm(expr1)
+            if (debug) printm(oL, mR)
+            if (debug) show_ast(most_right)
+            
+            FX = deparse(most_right[[2]])
+            GX = deparse(most_right[[3]])
+            
+            expr
+            term1 <- gsub_expr(expr, GX, "G_X")
+            term2 <- gsub_expr(expr, FX, "F_X")
+            
+            if(debug){
+              printm(expr, term1, term2)
+            }
+            
+            dterm1 <- mD0(term1, X_)
+            dterm2 <- mD0(term2, X_)
+            
+            res_temp <- parse(text = glue::glue("{dterm1}+{dterm2}"))[[1]]
+            res_temp
+            res_temp <- gsub_expr(res_temp, "F_X", FX)
+            res_temp <- gsub_expr(res_temp, "G_X", GX)
+            
+            res <- reduce_expr_sign(res_temp)
+            return(deparse(res))
+          }
+          
+          
+          
+          
+          
+          
           # Here, mR is not X_ nor inv(X_) but contains X_.
           # must use chain rule
 
