@@ -696,3 +696,98 @@ mD0 <- function( expr, X_="X", print=1, debug=0 ){
 } # end of mD0
 
 
+gradma <- function (expr, ..., values = NULL, dexpr = NULL,sym = 0, ntogoback = 1, 
+          print = 0, debug = 0) 
+{
+  temp = analyze_3d_val(values = values, debug = debug, ntogoback = ntogoback, 
+                        ...)
+  if (0) {
+    namename = temp$namename
+    nname = temp$nname
+    pat2 = temp$pat2
+    arg = temp$arg
+    dimarg = temp$dimarg
+    argval = temp$argval
+  }
+  arg = temp$arg
+  namename = temp$namename
+  nname = temp$nname
+  pat2 = temp$pat2
+  for (i in 1:nname) {
+    code = paste(namename[i], "=pat2[[i]]", sep = "")
+    if (debug >= 2) 
+      printm(i, code)
+    eval(parse(text = code))
+  }
+  vv = c("arg", "atd", "code", "debug", "expr", "expr0", "i", 
+         "constants", "print", "name", "namename", "nname", "ntogoback", 
+         "pat2", "vv", "values", "sym", "dimarg", "argval", "temp", 
+         arg)
+  const = setdiff(ls(), vv)
+  const0 = paste(const, collapse = ", ")
+  if (is.null(dexpr)) {
+    # dexpr = Dm_core(expr, arg, deparse_result = 1)
+    dexpr = mD0(expr, arg)
+  }
+  dexpr = gsub("inv", "Inv", dexpr)
+  gradma = Eval(dexpr, values = values, ..., fullsymb = 1, 
+                check = 0)
+  if (sym) {
+    gradma = gradma + t(gradma) - Diag(gradma)
+  }
+  if (print) {
+    cat("\nInput expression \"", expr, "\" was analytically differentiated", 
+        sep = "")
+    cat(" with respect to ", arg, ".\n", sep = "")
+    printm(dexpr)
+    cat("The above expression was evaluated with the following values:\n")
+    print(pat2)
+    cat("The result, with sym =", sym, ", is\n")
+    printm(gradma)
+  }
+  return(gradma)
+}
+
+
+
+
+show_ast <- function( expr, indent_char=" ", nindent=1 ) {
+  # AST (abstruct syntax tree) の構造を表示する
+  # Shin-ichi Mayekawa with ChatGPT
+  # 20250706cot
+  # title added: 20250707
+  # when expr is an expression: 20250708
+  # nindent: 20250708
+  #
+  
+  # expression を変換
+  if( is.expression(expr) ) expr=as.character(expr)
+  # 文字列を式に変換
+  if (is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  cat("AST of", deparse(expr), "\n")
+  # 再帰的に表示
+  recurse <- function(expr, indent_char = " ", nindent=1) {
+    if (is.call(expr)) {
+      cat(indent_char, "call: ", deparse(expr[[1]]), "\n")
+      for (i in 2:length(expr)) {
+        recurse(expr[[i]]
+                , paste0(indent_char, substr(indent_char,1,nindent)), nindent=nindent)
+      }
+    } else if (is.symbol(expr)) {
+      cat(indent_char, "symbol: ", as.character(expr), "\n")
+    } else {
+      cat(indent_char, "const: ", expr, "\n")
+    }
+  } # end of recurse
+  
+  recurse(expr, indent_char, nindent)
+  
+  # return( expr )
+  
+} # end of show_ast
+
