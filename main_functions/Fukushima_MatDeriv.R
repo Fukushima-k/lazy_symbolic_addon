@@ -561,10 +561,19 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
   result <- NULL
   
   if (is.call(expr)) {
+    # S1
+    if(FreeQ(expr, X_)){
+      # S1: no X
+      if (print) cat("S1: tr(A)\n")
+      return("O")
+    }
+    
+    
     # distribute mD0 as mD0(A+B,X) = mD0(A,X) + mD0(B,X)
     # rule (23)
     sums <- c("+", "-")
     if (as.character(expr[[1]]) %in% sums) {
+      if (print) cat("rule(23): mD0(A+B,X) = mD0(A,X) + mD0(B,X)\n")
       cat("mD of sum is converted to sum of mDs.\n")
       expr[[2]] <- parse(text = mD0(expr[[2]], X_))[[1]]
       expr[[3]] <- parse(text = mD0(expr[[3]], X_))[[1]]
@@ -574,8 +583,10 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     }
     
     
+    # rule (25)
     prods <- c("*")
     if(as.character(expr[[1]]) %in% prods){
+      if (print) cat("rule(25): mD0(A*B,X) = mD0(A*Bc,X) + mD0(Ac*B,X)\n")
       op <- as.character(expr[[1]])
       lhand_deriv <- deparse(Dm_core(expr[[2]], X_))
       rhand_deriv <- deparse(Dm_core(expr[[3]], X_))
@@ -588,8 +599,32 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       res = deparse(expr)
       return(res)
     }
-
     
+    # eq. (26) f(g(X)) (24)
+    N1 <- length(expr)
+    if(is.call(expr[[2]])){
+      N2 <- length(expr[[2]])
+    }else N2 <- 1
+    if(N1 == 2 & N2 == 2){
+      f1_op <- as.character(expr[[1]])
+      if(f1_op %in% c("exp", "log")){
+        if (print) cat("rule(24): the chain rule......")
+        if(f1_op == "exp")
+          df1_factor <- expr
+        if(f1_op == "log")
+          df1_factor <- call("/", 1, expr[[2]])
+      }else{
+        if (print) cat("rule(26): the chain rule......")
+        if (print) cat("In general, rule(26) is not yet available.")
+        df1_factor <- parse(text="df1(f2)/df2")[[1]]
+      }
+      df2_factor <- mD0(expr[[2]], X_)
+      res = call("*", df1_factor, parse(text=df2_factor)[[1]])
+      res = deparse(res)
+      return(res)
+    }
+    
+      
     if (as.character(expr[[1]]) == "tr") {
       #
       # Here, we must distribute tr as tr(A+B) = tr(A) + tr(B).
@@ -646,26 +681,37 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         other_left <- expr[[2]][[2]]
         oL = deparse(other_left)
         oL = gsub(" ", "", oL)
-        invs = c(paste0("inv(", X_, ")"), paste0("Inv(", X_, ")"))
+        invs <- paste0(c("inv", "Inv", "ginv", "Ginv"), 
+                       "(", X_, ")")
         if (debug) printm(invs, mR %in% invs)
         
         
+        most_right_temp <- drop_parens(most_right)
         
-        # 3 cases exist. 
-        # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
-        # 2. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
-        # 3. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
-        
-        # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
-        # right most factor does not contain X
-        if (FreeQ(mR, X_)) {
-          # S1: no X
-          if (print) cat("S1: tr(A)\n")
-          return(0)
+        if(is.call(most_right_temp))
+        if(length(most_right_temp)>2){
+          if(most_right_temp[[1]] == "*" &  most_right_temp[[3]]==X_){
+            hp = 1
+          }
         }
         
         
-        # 2. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
+        # 2 cases exist. 
+        # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
+        # 2. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
+        
+        # FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
+        # 全体に含まれていないことはif(FreeQ(expr, X_))で確認済みなので不要
+        # FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) -> TRUE
+        # trace_reorderが正しく機能している限り、X_が含まれているなら必ずmR存在。
+        # if (FreeQ(mR, X_)) {
+        #   # S1: no X
+        #   if (print) cat("S1: tr(A)\n")
+        #   return("O")
+        # }
+        
+        
+        # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
         if (FreeQ(other_left, X_)) {
           # most_right
           
@@ -684,9 +730,12 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
               res = paste0("t(", oL, ")")
             }
             else if (mR %in% invs) {
-              # S3.1
-              if (print) cat("S3.1: tr(A%*%inv(X))\n")
-              res = paste0("-t(inv(", X_, ")%*%", oL, "%*%inv(", X_, "))")
+              # S3.1 S3.2 
+              if (print) cat("S3.1 or 3.2: tr(A%*%inv(X))\n")
+              inv_X <- invs[invs %in% mR]
+              # res_str <- glue::glue("-t({target}%*% {deparse(other_left)} %*%{target})")
+              # result <- parse(text = res_str)[[1]]
+              res = paste0("-t(", inv_X, "%*%", oL, "%*%", inv_X,")")
             }
             else if (hp == 1) {
               # S6
@@ -770,7 +819,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           return( res )
 
         } # end of specific rules and chani rules
-        # 3. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
+        # 2. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
         else{
           
           
@@ -830,8 +879,19 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     } # end of trace function
     else{
       
+      # S4
+      if (as.character(expr[[1]]) == "det"){
+        if(expr[[2]] == expr_var){
+          if (print) cat("S4 : mD0(det(X), X)")
+          res_str <- glue::glue("det({X_})*inv(t({X_}))")
+          # result <- parse(text = res_str)[[1]]
+          return(res_str)
+        }
+      }
+      
+      
       # other scalar functions
-      cat("\n**** Currently, trace is the only function available.***\n")
+      cat("\n**** Currently, trace and det are the only function available.***\n")
       res = paste0("mD0(", deparse(expr), ", ", X_, ")")
       return(res)
       
