@@ -11,6 +11,19 @@ easy_parse <- function(text){
 } # end of easy_parse
 
 
+#' safe_deparse
+#' 
+#' @note deparseをただすると、長いexprは文字列ベクトルになってしまうので、
+#' 
+#' @examples
+#' 
+#' 
+#'  
+safe_deparse <- function(expr){
+  deparse(expr, width.cutoff = 500)
+} # end of safe_deparse
+
+
 #' Decompose Matrix Product
 #'
 #' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
@@ -33,6 +46,8 @@ easy_parse <- function(text){
 #' 
 #' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
 #' decompose_MatProd("A+(B+C)+((X+D)+E)", "+", target_X = "X")
+#' 
+#' decompose_MatProd("A%*%((X%*%B))", "%*%")
 #'
 #' @export
 #'
@@ -265,6 +280,9 @@ reduce_expr_sign <- function(expr){
 #' reduce_expr_I("A%*%((CB%*%I)%*%D)*E")
 #' reduce_expr_I("A%*%C%*%B%*%I%*%I*E")
 #' 
+#' reduce_expr_I("t(t(-t(inv(B%*%X)%*%t(t(-t(inv(t(inv(B%*%X)))%*%t(t(t(I)))%*%inv(t(inv(B%*%X))))))%*%inv(B%*%X)))%*%B)")
+#' grep_expr("t(t(-t(inv(B%*%X)%*%t(t(-t(inv(t(inv(B%*%X)))%*%t(t(t(I)))%*%inv(t(inv(B%*%X))))))%*%inv(B%*%X)))%*%B)")
+#' 
 #' @export
 #' 
 
@@ -281,7 +299,7 @@ reduce_expr_I <- function(expr){
   info_I <- info_I[[1]]
   if(is.null(info_I$parent)) return(expr)
   
-  if((as.character(info_I$parent[[1]]) %in% c("%*%", "*"))){
+  if((as.character(info_I$parent[[1]]) %in% c("%*%"))){
     depth <- length(info_I$path)
     target_path <- info_I$path[-depth]
     I_path <- info_I$path[depth]
@@ -294,6 +312,82 @@ reduce_expr_I <- function(expr){
 
   return(expr)
 }
+
+
+
+#' t(t(A)) -> A in expr
+#'
+#' @examples
+#' example code
+#' cancel_double_expr("t(t(A))")
+#' cancel_double_expr("t(A)")
+#' cancel_double_expr("A")
+#' cancel_double_expr("t(t(t(A)))")
+#' cancel_double_expr("t(t(t(A))*B)")
+#' cancel_double_expr("t(t(t(t(A))*t(B)))")
+#' cancel_double_expr("t(t(A))*inv(inv(t(B)))")
+#' cancel_double_expr("inv(inv(t(B)))")
+#' cancel_double_expr("t(I)", sym = "S")
+#' cancel_double_expr("t(I)%*%B%*%t(S)%*%inv(S)", sym = "S")
+#' cancel_double_expr("t(I)%*%B%*%t(S)%*%inv(S) * inv(I)", sym = "S")
+#' 
+#' @export
+#' 
+
+cancel_double_expr <- function(expr, sym, inv){
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  sym_mats <- c("I")
+  inv_mats <- c("I")
+  
+  double_op <- c("t", "inv")
+  
+  if(!missing(sym)) sym_mats <- c(sym_mats, sym)
+  if(!missing(inv)) inv_mats <- c(inv_mats, inv)
+  
+  info_double_list <- grep_expr(expr, double_op)
+  # info_double_list <- grep_expr(expr, "t")
+  if(length(info_double_list)==0) return(expr) 
+  for(i in seq_along(info_double_list)){
+    
+    info_double <- info_double_list[[i]]
+    if(is.null(info_double$parent)) return(expr)
+    
+    target_op <- as.character(info_double$match)
+    if(is.call(info_double$parent[[2]]))
+      if((as.character(info_double$parent[[2]][[1]]) %in% target_op)){
+        
+        depth <- length(info_double$path)
+        target_path <- info_double$path[-depth]
+        remain <- info_double$parent[[2]][[2]]
+        expr <- assign_at_expr(expr, target_path, remain)
+        # expr <- cancel_double_expr(expr)
+        expr <- cancel_double_expr(expr, sym = sym_mats, inv=inv_mats)
+        return(expr)
+        # expr <- reduce_expr_I(expr)
+      }
+    
+    sym_logic <- (target_op == "t"   )&&( safe_deparse(info_double$parent[[2]]) %in% sym_mats)
+    inv_logic <- (target_op == "inv" )&&( safe_deparse(info_double$parent[[2]]) %in% inv_mats)
+    if(sym_logic || inv_logic){
+      
+      depth <- length(info_double$path)
+      target_path <- info_double$path[-depth]
+      remain <- info_double$parent[[2]]
+      # expr; assign_at_expr(expr, target_path)
+      expr <- assign_at_expr(expr, target_path, remain)
+      expr <- cancel_double_expr(expr, sym = sym_mats, inv=inv_mats)
+      return(expr)
+    }
+  }
+  
+  return(expr)
+}
+
 
 
 
@@ -310,29 +404,43 @@ reduce_expr_I <- function(expr){
 #' 
 #' grep_expr(expr, "+")
 #' grep_expr(expr, "(")
+#' grep_expr(expr, "t")
 #' 
 #' @export
 #' 
 
 grep_expr <- function(expr, varname) {
   
-  for(expr_name in c("expr", "varname")){
-    expr_temp <- eval(parse(text=expr_name))
-    if (is.character(expr_temp)){
-      assign(expr_name, 
-             tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
-               warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
-               return(NULL)
-             })
-      )
-    }
-  }
+  # for(expr_name in c("expr", "varname")){
+  #   expr_temp <- eval(parse(text=expr_name))
+  #   if (is.character(expr_temp)){
+  #     assign(expr_name, 
+  #            tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
+  #              warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
+  #              return(NULL)
+  #            })
+  #     )
+  #   }
+  # }
+  # 
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  if(is.character(varname))
+    varname <- lapply(varname, function(expr)tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    }))
+  varname_post_parsed_str <- sapply(varname, deparse)
   
   matches <- list()
   
   find_var <- function(e, path = NULL, parent = NULL) {
     # 正確に一致（括弧含む式、関数呼び出し、演算も可）
-    if (identical(e, varname)) {
+    if ((paste0(deparse(e),collapse="") %in% varname_post_parsed_str)) {
       matches[[length(matches) + 1]] <<- list(
         path = path,
         parent = parent,
@@ -372,6 +480,7 @@ grep_expr <- function(expr, varname) {
 #' 
 
 assign_at_expr <- function(expr, path, value) {
+  if(missing(value)) value = NULL
   for(expr_name in c("expr", "value")){
     expr_temp <- eval(parse(text=expr_name))
     if (is.character(expr_temp)){
@@ -384,7 +493,6 @@ assign_at_expr <- function(expr, path, value) {
     }
   }
   
-  if(missing(value)) value = NULL
   if (length(path) == 0) return(value)  # expr 全体を置き換える場合
   
   # 再帰的に代入を適用する内部関数
@@ -427,6 +535,7 @@ gsub_expr <- function(expr, object, replacement){
       )
     }
   }
+  
   
   if(is.call(expr)){
     N <- length(expr)

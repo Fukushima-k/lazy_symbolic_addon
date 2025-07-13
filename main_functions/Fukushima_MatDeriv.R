@@ -221,7 +221,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       expr[[2]] <- parse(text = mD0(expr[[2]], X_))[[1]]
       expr[[3]] <- parse(text = mD0(expr[[3]], X_))[[1]]
       if( debug ) show_ast(expr)
-      res = deparse(expr)
+      res = safe_deparse(expr)
       return(res)
     }
     
@@ -231,15 +231,15 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     if(as.character(expr[[1]]) %in% prods){
       if (print) cat("rule(25): mD0(A*B,X) = mD0(A*Bc,X) + mD0(Ac*B,X)\n")
       op <- as.character(expr[[1]])
-      lhand_deriv <- deparse(Dm_core(expr[[2]], X_))
-      rhand_deriv <- deparse(Dm_core(expr[[3]], X_))
-      lhand <- deparse(expr[[2]])
-      rhand <- deparse(expr[[3]])
+      lhand_deriv <- mD0(expr[[2]], X_)
+      rhand_deriv <- mD0(expr[[3]], X_)
+      lhand <- safe_deparse(expr[[2]])
+      rhand <- safe_deparse(expr[[3]])
       res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
       expr <- parse(text = res_str)[[1]]
       if( debug ) show_ast(expr)
       
-      res = deparse(expr)
+      res = safe_deparse(expr)
       return(res)
     }
     
@@ -259,7 +259,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         
         df2_factor <- mD0(expr[[2]], X_)
         res = call("*", df1_factor, parse(text=df2_factor)[[1]])
-        res = deparse(res)
+        res = safe_deparse(res)
         return(res)
       }
       # else{
@@ -280,18 +280,18 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       if (print) cat("C1: using chain rule for all ...\n")
       
-      expr1 = deparse(expr)
+      expr1 = safe_deparse(expr)
       if( debug ) printm(expr1)
       if (debug) printm(oL, mR)
       if (debug) show_ast(most_right)
       
       N <- length(most_right)
-      FX = deparse(most_right[[N]])
+      FX = safe_deparse(most_right[[N]])
       
       if(N>2 & !FreeQ(most_right[[2]], X_)){
         # C1yはF(X)以外にXが影響しているので使えない。
         cat("\n*** tr(A%*%(F(X)%*%G(X))) is not yet available.***\n")
-        res=paste0("mD0(",deparse(expr),", ",X_,")")
+        res=paste0("mD0(",safe_deparse(expr),", ",X_,")")
         cat(res);cat("\n\n")
         return( res )
       }
@@ -347,7 +347,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       # move X_ to the right most position  (t(X_) will be taken care of.)
       expr[[2]] <- trace_reorder(expr[[2]], X_)
-      if(debug) cat("reordered trace: ", deparse(expr), "\n\n")
+      if(debug) cat("reordered trace: ", safe_deparse(expr), "\n\n")
       
       ################################################################
       ##### for Hadamar Product ######################################
@@ -367,7 +367,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       # change tr(A*B) or tr((A*B)) to tr(I%*%(A*B))
       hp = 0
       if(0){
-        exprstr = deparse(expr)
+        exprstr = safe_deparse(expr)
         exprstr = gsub(" ", "", exprstr)
         if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
           if( debug ) printm("input:", exprstr)
@@ -391,12 +391,12 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         ###########################################
         most_right <- drop_parens(most_right)
         
-        mR = deparse(most_right)
+        mR = safe_deparse(most_right)
         if (debug) printm(mR, X_, mR == X_, hp)
         
         # それ以外の左のファクター
         other_left <- expr[[2]][[2]]
-        oL = deparse(other_left)
+        oL = safe_deparse(other_left)
         oL = gsub(" ", "", oL)
         invs <- paste0(c("inv", "Inv", "ginv", "Ginv"), 
                        "(", X_, ")")
@@ -450,7 +450,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
               # S6
               if (print) cat("S6: tr((A*X)%*%B)\n")
               # if( debug ) printm( deparse(most_right[[2]][[1]]) )
-              AA = deparse(most_right[[2]]) #modified##############################################
+              AA = safe_deparse(most_right[[2]]) #modified##############################################
               # if( debug ) printm(mR,oL, AA)
               # if( oL == "I" ) res=paste0("diag(",AA,")")
               # else res=paste0(AA,"*t(",oL,")")
@@ -459,18 +459,18 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             return(res)
           }
           
-          expr1 = deparse(expr)
+          expr1 = safe_deparse(expr)
           N <- length(most_right)
           if(N>2 & !FreeQ(most_right[[2]], X_) & most_right[[1]]=="*"){
             if (print) cat("P2: using product rule...\n")
             
-            # expr1 = deparse(expr)
+            # expr1 = safe_deparse(expr)
             if( debug ) printm(expr1)
             if (debug) printm(oL, mR)
             if (debug) show_ast(most_right)
             
-            FX = deparse(most_right[[2]])
-            GX = deparse(most_right[[3]])
+            FX = safe_deparse(most_right[[2]])
+            GX = safe_deparse(most_right[[3]])
             
             expr
             term1 <- gsub_expr(expr, GX, "G_X")
@@ -489,25 +489,25 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             res_temp <- gsub_expr(res_temp, "G_X", GX)
             
             res <- reduce_expr_sign(res_temp)
-            return(deparse(res))
+            return(safe_deparse(res))
           }
           # Here, mR is not X_ nor inv(X_) but contains X_.
           # must use chain rule
 
           if (print) cat("C1: using chain rule...\n")
 
-          expr1 = deparse(expr)
+          expr1 = safe_deparse(expr)
           if( debug ) printm(expr1)
           if (debug) printm(oL, mR)
           if (debug) show_ast(most_right)
 
           N <- length(most_right)
-          FX = deparse(most_right[[N]])
+          FX = safe_deparse(most_right[[N]])
           
           if(N>2 & !FreeQ(most_right[[2]], X_)){
             # C1yはF(X)以外にXが影響しているので使えない。
             cat("\n*** tr(A%*%(F(X)%*%G(X))) is not yet available.***\n")
-            res=paste0("mD0(",deparse(expr),", ",X_,")")
+            res=paste0("mD0(",safe_deparse(expr),", ",X_,")")
             cat(res);cat("\n\n")
             return( res )
           }
@@ -544,18 +544,21 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           
           if (debug) printm(res1)
           
+          
+          res1 <- safe_deparse(cancel_double_expr(res1))
+          
           return(res1)
           
           # 
           # #     cat("\n*** chain rule not yet available.***\n")
-          # #     res=paste0("mD0(",deparse(expr),", ",X_,")")
+          # #     res=paste0("mD0(",safe_deparse(expr),", ",X_,")")
           # #     return( res )
           # 
           
-          cat("\n*** the followling mD0 is not yet available.***\n")
-          res=paste0("mD0(",deparse(expr),", ",X_,")")
-          cat(res);cat("\n\n")
-          return( res )
+          # cat("\n*** the followling mD0 is not yet available.***\n")
+          # res=paste0("mD0(",safe_deparse(expr),", ",X_,")")
+          # cat(res);cat("\n\n")
+          # return( res )
 
         } # end of specific rules and chani rules
         # 2. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
@@ -574,15 +577,15 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           first_term <- second_term <- expr
           first_term[[2]][[3]] <- as.symbol("mRc")
           second_term[[2]][[2]] <- as.symbol("oLc")
-          if (debug) cat("the 1st term of P1 is: mD0(", deparse(first_term), ",", X_, ")\n")
-          if (debug) cat("the 2nd term of P1 is: mD0(", deparse(second_term),",", X_, ")\n")
+          if (debug) cat("the 1st term of P1 is: mD0(", safe_deparse(first_term), ",", X_, ")\n")
+          if (debug) cat("the 2nd term of P1 is: mD0(", safe_deparse(second_term),",", X_, ")\n")
           # if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
           # if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
           if (debug) cat("*** processing the 1st term* ***\n")
           
           
           
-          res1 = mD0(deparse(first_term), X_)
+          res1 = mD0(safe_deparse(first_term), X_)
           res11 = gsub_expr(res1, "mRc", mR)
           # res11 = gsub("mRc", mR, res1, fixed = TRUE)
           # res11 = gsub(" ", "", res11)
@@ -590,7 +593,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           if (debug) printm(res1, res11)
           if (debug) cat("*** processing the 2nd term* ***\n")
           
-          res2 =  mD0(deparse(second_term), X_)
+          res2 =  mD0(safe_deparse(second_term), X_)
           res22 = gsub_expr(res2, "oLc", oL)
           # res22 = gsub("oLc", oL, res2)
           # res22 = gsub(" ", "", res22)
@@ -603,26 +606,26 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           res = reduce_expr_sign(res)
           
           if (debug) printm("final result", "/", res)
-          return(deparse(res, width.cutoff = 500))
+          return(safe_deparse(res))
           
         } # end of product rule
         
       } # end of matrix product
       else{
-        default_expr <-  deparse(expr)
+        default_expr <-  safe_deparse(expr)
         expr[[2]] <- call("%*%", as.symbol("I"), expr[[2]])
 
         res <- mD0(expr, X_)
         if(!grepl("mD0", res)){
           if(print) cat("\nTechnic: add I %*% \n")
           if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
-          res <- deparse(reduce_expr_I(res))
+          res <- safe_deparse(reduce_expr_I(res))
 
           return(res)
         }
         
         cat("\n*** Cannot differentiate the input expression.***\n")
-        res = paste0("mD0(", deparse(expr), ", ", X_, ")")
+        res = paste0("mD0(", safe_deparse(expr), ", ", X_, ")")
         return(res)
         
       } # end of sorry!
@@ -643,7 +646,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       # other scalar functions
       cat("\n**** Currently, trace and det are the only function available.***\n")
-      res = paste0("mD0(", deparse(expr), ", ", X_, ")")
+      res = paste0("mD0(", safe_deparse(expr), ", ", X_, ")")
       return(res)
       
     }
@@ -652,7 +655,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
   else{
     # expr is not a call
     cat("\n**** expr does not have a scalar function of X.***\n")
-    res = paste0("mD0(", deparse(expr), ", ", X_, ")")
+    res = paste0("mD0(", safe_deparse(expr), ", ", X_, ")")
     return(res)
   } # end of non-call
   
@@ -733,11 +736,11 @@ show_ast <- function( expr, indent_char=" ", nindent=1 ) {
       return(NULL)
     })
   
-  cat("AST of", deparse(expr), "\n")
+  cat("AST of", safe_deparse(expr), "\n")
   # 再帰的に表示
   recurse <- function(expr, indent_char = " ", nindent=1) {
     if (is.call(expr)) {
-      cat(indent_char, "call: ", deparse(expr[[1]]), "\n")
+      cat(indent_char, "call: ", safe_deparse(expr[[1]]), "\n")
       for (i in 2:length(expr)) {
         recurse(expr[[i]]
                 , paste0(indent_char, substr(indent_char,1,nindent)), nindent=nindent)

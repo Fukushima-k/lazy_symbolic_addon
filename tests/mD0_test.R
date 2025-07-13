@@ -19,7 +19,7 @@ if(0){
   # これで、
   # mD0("tr((inv(X)*X)%*%A)","X")
   
-  mD0("tr((inv(X)*t(X))%*%A)","X", debug = 1, trace_chain = 1)
+  mD0("tr((inv(X)*t(X))%*%A)","X", debug = 1)
   # 解析解
   "t(t(t(inv(X)*t(A))))+mD0(tr(t(A)*t(t(t(t(X))))%*%inv(X)),X)"
   # 解析解の数値的評価
@@ -132,8 +132,13 @@ if(0){
   mD0("t(A) %*% t(B) %*% t((X) * A)", "X")
   
   
+  
+  
+  # to do 
   # 転置をadd_transposeに
   # t(t(A)) -> A ; inv(inv(A)) -> A ; A %*% I -> Aに。
+  # mD0_parsed("tr(A*(X))", "X", debug = 1)   
+  
   
 }
 
@@ -223,10 +228,6 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("(A*X)%*%B%*%X%*%C", "X"), easy_parse("B %*% X %*% C %*% (A * X)"))
   
   
-  
-  # この二つは微分計算できるのかな？？
-  trace_reorder("t(A) %*% t(B) %*% t(X * A)", "X")
-  trace_reorder("t(A) %*% t(B) %*% t((X) * A)", "X")
 })
 
 test_that("mD0_parsed derivatives", {
@@ -288,33 +289,54 @@ test_that("basic fomula", {
   expect_equal(mD0_parsed("log(tr(A%*%X))", "X")                     ,easy_parse("1/tr(A %*% X) * t(A)"))
 })
 
-
-
 test_that("chain rules", {
-  expect_equal(mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)                   , easy_parse("t(t(t(t(A))) %*% B)"))
-  expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * t(I)) %*% B)"))
+  expect_equal(mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)                   , easy_parse("t(t(A) %*% B)"))
+  expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * I) %*% B)"))
+  expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * I) %*% B)"))
+  expect_equal(mD0_parsed("tr(A*X)", "X", debug = 1)                            , easy_parse("A * t(I)"))
   expect_equal(mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)                 , easy_parse("t(t(-t(inv(B %*% X) %*% A %*% inv(B %*% X))) %*% B)"))
   expect_equal(mD0_parsed("tr(inv(B%*%X))", "X", debug = 1)                     , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
-  expect_equal(mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)                  , easy_parse("t(t(-t(inv(B %*% X) %*% t(t(t(I))) %*% inv(B %*% X))) %*% B)"))
-  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)          , easy_parse("t(t(-t(inv(B %*% X) %*% t(t(-t(inv(t(inv(B %*% X))) %*% t(t(t(I))) %*% 
-    inv(t(inv(B %*% X)))))) %*% inv(B %*% X))) %*% B)"))
-  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)      , easy_parse("t(t(-t(inv(B %*% X) %*% t(t(-t(inv(t(inv(B %*% X))) %*% C %*% 
-    t(t(t(I))) %*% inv(t(inv(B %*% X)))))) %*% inv(B %*% X))) %*% 
-    B)"))
+  expect_equal(mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)                  , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)          , easy_parse("t(t(-t(inv(B %*% X) %*% -t(inv(t(inv(B %*% X))) %*% 
+    inv(t(inv(B %*% X)))) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)      , easy_parse("t(t(-t(inv(B %*% X) %*% -t(inv(t(inv(B %*% X))) %*% C %*%
+    inv(t(inv(B %*% X)))) %*% inv(B %*% X))) %*% B)"))
   
   
+  expect_equal(mD0_parsed("tr(t(A)%*%t(B)%*%t(X*A))")   , easy_parse("t(t(A*I)%*% t(A*I))"))
+  expect_equal(mD0_parsed("tr(t(A)%*%t(B)%*%t(t(X)*A))"), easy_parse("t(A*A*I)"))
 })
+
+
+
+trace_reorder("tr(A%*%((X%*%B)))", "X")
+
+
+mD0_parsed("tr(A*(X%*%B))", "X", debug = 1)  
+mD0_parsed("tr(A%*%(X%*%B))", "X", debug = 1)  
+mD0_parsed("tr(A*(X*B))", "X", debug = 1)  
+mD0_parsed("tr(A%*%(X*B))", "X", debug = 1)  
+
+
+mD0_parsed("tr(A%*%(X*B))", "X", debug = 1)  
+
+mD0_parsed("tr(A*(X%*%B)*C)", "X")
+mD0_parsed("A*(X%*%B)*C", "X")
+
 
 
 c(
   "tr(A%*%t(B%*%X))",
   "tr(A*(B%*%X))",
+  "tr(A*(B%*%X))",
+      "tr(t(A*t(I)) %*% B%*%X)",
+      "tr(A*X)",
   "tr(A%*%inv(B%*%X))",
   "tr(inv(B%*%X))",
   "tr(t(inv(B%*%X)))",
   "tr(t(inv(t(inv(B%*%X)))))",
   "tr(t(inv(t(inv(B%*%X)))%*%C))",
-  
+
   "tr(A%*%X)"
 ) %>%
   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
