@@ -4,6 +4,7 @@ if(0){
   library(lazy.symbolic)
   library(tidyr)
   source("main_functions/gradmn3.R")
+  source("main_functions/Fukushima_MatDeriv.R")
   
   testthat::test_file("tests/mD0_test.R")
   
@@ -131,7 +132,8 @@ if(0){
   mD0("t(A) %*% t(B) %*% t((X) * A)", "X")
   
   
-  
+  # 転置をadd_transposeに
+  # t(t(A)) -> A ; inv(inv(A)) -> A ; A %*% I -> Aに。
   
 }
 
@@ -160,10 +162,6 @@ check_numerical_identity <- function(funcs, seed = 123){
     Gradma <- gradma(func, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
     max(abs(Gradmn - Gradma))
   })
-}
-
-easy_parse <- function(text){
-  parse(text=text)[[1]]
 }
 
 mD0_parsed <- function(...){
@@ -201,12 +199,11 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("A*(X%*%B)*C", "X"),     easy_parse("C  *  A  *  (X %*% B)")) # この場合は、どう処理をするべきか。
   expect_equal(trace_reorder("A%*%B%*%(F%*%((E%*%(X%*%C))%*%D))", "X") , easy_parse("C %*% D %*% A %*% B %*% F %*% E %*% X"))
   expect_equal(trace_reorder("(A%*%B)%*%(X%*%C)", "X") , easy_parse("C %*% (A %*% B) %*% X"))
-  # decompose_parensの中に取り入れるべきでは？
      
-  decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
-  decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
-  decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
-  decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)
+  # decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
+  # decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
+  # decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
+  # decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)
   
   
   # trace
@@ -292,6 +289,37 @@ test_that("basic fomula", {
 })
 
 
+
+test_that("chain rules", {
+  mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)
+  mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)
+  mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)
+  mD0_parsed("tr(inv(B%*%X))", "X", debug = 1)
+  mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)
+  mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)
+
+  mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)
+  
+  
+})
+
+
+c(
+  "tr(A%*%t(B%*%X))",
+  "tr(A*(B%*%X))",
+  "tr(A%*%inv(B%*%X))", 
+  "tr(inv(B%*%X))", 
+  "tr(t(inv(B%*%X)))", 
+  "tr(t(inv(t(inv(B%*%X)))))", 
+  "tr(t(inv(t(inv(B%*%X)))%*%C))",
+  
+  "tr(A%*%X)"
+) %>%
+  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+
+
+
+
 # -------------------------------------------------------------------------
 # compared with numerical gradients
 # -------------------------------------------------------------------------
@@ -346,8 +374,7 @@ c(
   "tr(I%*%inv(t(X)))",
   
   "tr(A*X) ",
-  # "tr(I%*%(A*X)) ",
-  
+  "tr(I%*%(A*X)) ",
   "tr(A%*%X)"
 ) %>%
   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)

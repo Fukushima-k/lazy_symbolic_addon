@@ -1,3 +1,16 @@
+
+#' easy_parse
+#' 
+#' @examples
+#' easy_parse("X")
+#' easy_parse("tr(X%*%B)")
+#' 
+
+easy_parse <- function(text){
+  parse(text=text)[[1]]
+} # end of easy_parse
+
+
 #' Decompose Matrix Product
 #'
 #' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
@@ -152,6 +165,26 @@ compose_MatProd <- function(terms, op){
 }
 
 
+#' Transpose expr
+#' 
+#' @examples
+#' library(tidyr)
+#' easy_parse("X") %>%  transpose_expr
+#' easy_parse("t(X)") %>%  transpose_expr
+#' easy_parse("t(t(X)%*%B)") %>%  transpose_expr
+#' easy_parse("(t(t(X)%*%B))") %>%  transpose_expr
+#' 
+#' @export
+#' 
+
+transpose_expr <- function(expr){
+if(is.call(expr)){
+  if(expr[[1]] == "t"){
+    return(expr[[2]])
+  }
+}
+return(call("t", expr))
+} # end of transpose_expr
 
 
 #' Simplify Power
@@ -252,7 +285,7 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
       # is target transpose 
       # if(deparse(target)  %in% paste0("t(", X_, ")")){
       if(deparse(target) == paste0("t(", X_, ")")){
-        target <- as.symbol(X_)
+        target <- transpose_expr(target)
         transposed = TRUE
       }else if(N>1){
         # reorder target factor
@@ -262,20 +295,13 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
         temp_current[[X_index]] <- target
       }
       
-      add_transpose <- function(expr){
-        if(is.call(expr)){
-          if(expr[[1]] == "t"){
-            return(expr[[2]])
-          }
-        }
-        return(call("t", expr))
-      }
+      
       # process transpose
       if(transposed){
         # symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
         # symbols_current_temp[[X_index]] <- deparse(target)
         # symbols_current <- symbols_current_temp[N:1]
-        temp_current <- lapply(temp_current, add_transpose)
+        temp_current <- lapply(temp_current, transpose_expr)
         temp_current[[X_index]] <- target
         temp_current <- temp_current[N:1]
         X_index <- N-X_index+1
