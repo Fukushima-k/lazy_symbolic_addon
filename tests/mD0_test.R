@@ -9,7 +9,6 @@ if(0){
   
   testthat::test_file("tests/mD0_test.R")
   
-  # 
   # mD0("tr((inv(X)*t(X))%*%A)","X") の前に、まずmD0("tr((inv(X)*X)%*%A)","X")を見ます。
   # mD0("tr((inv(X)*X)%*%A)","X")は内部的に、mD0("tr(A%*%(FX))", "FX")を計算しているわけですが、
   # mD0("tr(A%*%(X))", "X")自体がそもそも計算できないことが問題なので、drop_parens()によって
@@ -292,14 +291,16 @@ test_that("basic fomula", {
 
 
 test_that("chain rules", {
-  mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)
-  mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)
-  mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)
-  mD0_parsed("tr(inv(B%*%X))", "X", debug = 1)
-  mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)
-  mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)
-
-  mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)
+  expect_equal(mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)                   , easy_parse("t(t(t(t(A))) %*% B)"))
+  expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * t(I)) %*% B)"))
+  expect_equal(mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)                 , easy_parse("t(t(-t(inv(B %*% X) %*% A %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(inv(B%*%X))", "X", debug = 1)                     , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)                  , easy_parse("t(t(-t(inv(B %*% X) %*% t(t(t(I))) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)          , easy_parse("t(t(-t(inv(B %*% X) %*% t(t(-t(inv(t(inv(B %*% X))) %*% t(t(t(I))) %*% 
+    inv(t(inv(B %*% X)))))) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)      , easy_parse("t(t(-t(inv(B %*% X) %*% t(t(-t(inv(t(inv(B %*% X))) %*% C %*% 
+    t(t(t(I))) %*% inv(t(inv(B %*% X)))))) %*% inv(B %*% X))) %*% 
+    B)"))
   
   
 })
@@ -308,10 +309,10 @@ test_that("chain rules", {
 c(
   "tr(A%*%t(B%*%X))",
   "tr(A*(B%*%X))",
-  "tr(A%*%inv(B%*%X))", 
-  "tr(inv(B%*%X))", 
-  "tr(t(inv(B%*%X)))", 
-  "tr(t(inv(t(inv(B%*%X)))))", 
+  "tr(A%*%inv(B%*%X))",
+  "tr(inv(B%*%X))",
+  "tr(t(inv(B%*%X)))",
+  "tr(t(inv(t(inv(B%*%X)))))",
   "tr(t(inv(t(inv(B%*%X)))%*%C))",
   
   "tr(A%*%X)"
@@ -340,7 +341,7 @@ c(
   "tr(A%*%t(X))",
   "tr(A%*%t(X)%*%C%*%B)",
   "tr(A%*%t(X)%*%C%*%t(B))",
-  # "exp(tr(A%*%X)) * exp(tr(B%*%X))", # どこかで代入に失敗している模様。
+  "exp(tr(A%*%X)) * exp(tr(B%*%X))", 
   "exp(tr(A%*%X)) + exp(tr(B%*%X))",
 
   "tr(A%*%X)"

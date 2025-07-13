@@ -616,10 +616,9 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         if(!grepl("mD0", res)){
           if(print) cat("\nTechnic: add I %*% \n")
           if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+          res <- deparse(reduce_expr_I(res))
 
-          clean_I <- function(expr){return(expr)} # 開発予定
-
-          return(clean_I(res))
+          return(res)
         }
         
         cat("\n*** Cannot differentiate the input expression.***\n")
@@ -691,7 +690,8 @@ gradma <- function (expr, ..., values = NULL, dexpr = NULL,sym = 0, ntogoback = 
   const0 = paste(const, collapse = ", ")
   if (is.null(dexpr)) {
     # dexpr = Dm_core(expr, arg, deparse_result = 1)
-    dexpr = mD0(expr, arg)
+    # dexpr = mD0(expr, arg)
+    dexpr = paste0(mD0(expr, arg), collapse ="") # exprは長すぎると勝手に改行する。deparseしたらその改行で別れた文字列ベクトルになってしまう。
   }
   dexpr = gsub("inv", "Inv", dexpr)
   gradma = Eval(dexpr, values = values, ..., fullsymb = 1, 
