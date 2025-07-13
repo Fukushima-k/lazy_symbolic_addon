@@ -253,6 +253,162 @@ reduce_expr_sign <- function(expr){
   compose_MatProd(temp)
 }
 
+#' reduce I in expr
+#'
+#' @examples
+#' # example code
+#' reduce_expr_I("A%*%I")
+#' reduce_expr_I("A*I")
+#' reduce_expr_I("I%*%A")
+#' reduce_expr_I("I%*%I")
+#' reduce_expr_I("A%*%CB%*%I%*%D*E")
+#' reduce_expr_I("A%*%((CB%*%I)%*%D)*E")
+#' reduce_expr_I("A%*%C%*%B%*%I%*%I*E")
+#' 
+#' @export
+#' 
+
+reduce_expr_I <- function(expr){
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+
+  
+  info_I <- grep_expr(expr, "I")
+  if(length(info_I)==0) return(expr) 
+  info_I <- info_I[[1]]
+  if(is.null(info_I$parent)) return(expr)
+  
+  if((as.character(info_I$parent[[1]]) %in% c("%*%", "*"))){
+    depth <- length(info_I$path)
+    target_path <- info_I$path[-depth]
+    I_path <- info_I$path[depth]
+    remain <- info_I$parent[[(2:3)[2:3!=I_path]]]
+    expr <- assign_at_expr(expr, target_path, remain)
+    expr <- reduce_expr_I(expr)
+    return(expr)
+    # expr <- reduce_expr_I(expr)
+  }
+
+  return(expr)
+}
+
+
+
+
+#' grep for expr 
+#' 
+#' @examples 
+#' 
+#' expr <- "(tr(A %*% B) + A + t(C))"
+#' grep_expr(expr, "A")
+#' 
+#' grep_expr(expr, "t(C)")
+#' grep_expr(expr, "A%*%B")
+#' 
+#' grep_expr(expr, "+")
+#' grep_expr(expr, "(")
+#' 
+#' @export
+#' 
+
+grep_expr <- function(expr, varname) {
+  
+  for(expr_name in c("expr", "varname")){
+    expr_temp <- eval(parse(text=expr_name))
+    if (is.character(expr_temp)){
+      assign(expr_name, 
+             tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
+               warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
+               return(NULL)
+             })
+      )
+    }
+  }
+  
+  matches <- list()
+  
+  find_var <- function(e, path = NULL, parent = NULL) {
+    # 正確に一致（括弧含む式、関数呼び出し、演算も可）
+    if (identical(e, varname)) {
+      matches[[length(matches) + 1]] <<- list(
+        path = path,
+        parent = parent,
+        match = e
+      )
+    }
+    
+    # 再帰探索（symbol は飛ばす）
+    if (is.call(e)) {
+      for (i in seq_along(e)) {
+        find_var(e[[i]], c(path, i), e)
+      }
+    }
+  }
+  
+  find_var(expr)
+  return(matches)
+}
+
+
+
+#' assigne new expr at path
+#' 
+#' @examples
+#' 
+#' (expr <- quote(tr(A %*% B) + A + C))
+#' assign_at_expr(expr, c(2, 2), quote(Z))
+#' 
+#' assign_at_expr(expr, grep_expr(expr, "A")[[1]]$path, quote(Z))
+#' assign_at_expr(expr, grep_expr(expr, "A")[[2]]$path, quote(Z))
+#'  
+#' assign_at_expr(expr, c(2, 2))
+#' 
+#' assign_at_expr(quote(tr(A %*% B) + A), 2)
+#' 
+#' @export
+#' 
+
+assign_at_expr <- function(expr, path, value) {
+  for(expr_name in c("expr", "value")){
+    expr_temp <- eval(parse(text=expr_name))
+    if (is.character(expr_temp)){
+      assign(expr_name, 
+             tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
+               warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
+               return(NULL)
+             })
+      )
+    }
+  }
+  
+  if(missing(value)) value = NULL
+  if (length(path) == 0) return(value)  # expr 全体を置き換える場合
+  
+  # 再帰的に代入を適用する内部関数
+  recursive_set <- function(e, p) {
+    if(is.null(value)){
+      if (length(p) == 1) {
+        return(e[[p[1]]])
+      } else {
+        return(recursive_set(e[[p[1]]], p[-1]))
+      }
+      return(e)
+    }else{
+      if (length(p) == 1) {
+        e[[p[1]]] <- value
+      } else {
+        e[[p[1]]] <- recursive_set(e[[p[1]]], p[-1])
+      }
+      return(e)
+    }
+  }
+  
+  recursive_set(expr, path)
+} # end of assign_at_expr
+
 
 
 #' gsub for expr
