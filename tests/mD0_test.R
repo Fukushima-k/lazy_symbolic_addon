@@ -5,6 +5,7 @@ if(0){
   library(tidyr)
   source("main_functions/gradmn3.R")
   source("main_functions/Fukushima_MatDeriv.R")
+  source("main_functions/Fukushima_tools_for_expr.R")
   
   testthat::test_file("tests/mD0_test.R")
   
