@@ -203,6 +203,17 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
   
   result <- NULL
   
+  
+  
+  expr_out <- drop_parens(expr)
+  
+  if(expr != expr_out){
+    if(print) cat("drop parens: \n")
+    if(debug) cat(paste0(safe_deparse(expr), " -> ", safe_deparse(expr_out), "\n"))
+    expr <- expr_out
+  }
+  
+  
   if (is.call(expr)) {
     # S1
     if(FreeQ(expr, X_)){

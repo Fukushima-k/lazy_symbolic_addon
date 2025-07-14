@@ -47,7 +47,10 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
 #' decompose_MatProd("A+(B+C)+((X+D)+E)", "+", target_X = "X")
 #' 
-#' decompose_MatProd("A%*%((X%*%B))", "%*%")
+#' decompose_MatProd("(A%*%X)%*%B", "%*%")
+#' decompose_MatProd("(A%*%X)%*%B", "%*%", flat = TRUE)
+#' decompose_MatProd("A%*%((X%*%B))", "%*%", flat = TRUE)
+#' decompose_MatProd("A%*%(((((X))%*%B)))", "%*%", flat = TRUE)
 #'
 #' @export
 #'
@@ -92,7 +95,7 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
   continue <- TRUE
   while(continue){
     continue <- FALSE
-    i_range <- 1
+    i_range <- NULL
     if(flat & missing(target_X)){
       # i <- 1
       # while(i <= length(temp_current)){
@@ -102,9 +105,11 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
       i <-which(grepl(paste("\\b",target_X,"\\b", sep=""), as.character(temp_current)))
       i_range <- i[1] # i_range must be 1 length
     }
+    if(!is.null(i_range))
     for(i in i_range){
       if(is.call(temp_current[[i]]))
-        if(temp_current[[i]][[1]] == "(")
+      if(temp_current[[i]][[1]] == "(")
+      if(is.call(temp_current[[i]][[2]])){
           if(as.character(temp_current[[i]][[2]][[1]]) %in% op){
             continue <- TRUE
             additional_op = as.character(temp_current[[i]][[2]][[1]])
@@ -119,6 +124,15 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
             }
             ops <- ops %>% unlist()
           }
+        else if(as.character(temp_current[[i]][[2]][[1]]) == "("){
+            continue <- TRUE
+            temp_current[[i]] <- temp_current[[i]][[2]]
+        }
+      }
+      else if(is.symbol(temp_current[[i]][[2]])){
+        continue <- TRUE
+        temp_current[[i]] <- temp_current[[i]][[2]]
+      }
     }
   }
   
@@ -204,18 +218,95 @@ transpose_expr <- function(expr){
 
 #' drop parens
 #' 
+#' @param all TRUE if all parens should be removed from ast. FALSE if 二項演算子同士の順序関係を明示したい場合。
+#' @param in_biop flag for recursive process. 
+#' 
 #' @examples
 #' # example code
 #' drop_parens("X")
+#' drop_parens("(X)")
 #' drop_parens("((X))")
 #' drop_parens("(t((X)))")
-#' drop_parens("(t((tr((X)))))")
+#' drop_parens("(t((tr((X)))))") %>% show_ast()
+#' drop_parens("(t((tr((X)))))") %>% show_ast()
+#' drop_parens("(A*B)")
+#' 
+#' # examples for all
+#' drop_parens("((A%*%(B*((C%*%C)))))") %>% show_ast()
+#' drop_parens("((A%*%(B*((C%*%C)))))", all = T)%>% show_ast()
+#' 
+#' drop_parens("((A%*%(B*((C%*%C)))))") %>% show_ast()
+#' drop_parens("((A%*%(B*((C%*%C)))))", all = T)%>% show_ast()
+#' 
+#' 
+#' 
+#' expr <- easy_parse("(X*A)%*%C") ; expr %>% show_ast
+#' drop_parens(expr) %>% show_ast()
+#' expr <- easy_parse("C%*%(X*A)") ; expr %>% show_ast 
+#' drop_parens(expr) %>% show_ast()
+#' expr <- easy_parse("(X%*%A)*C") ; expr %>% show_ast
+#' drop_parens(expr) %>% show_ast()
+#' expr <- easy_parse("C*(X%*%A)") ; expr %>% show_ast 
+#' drop_parens(expr) %>% show_ast()
+#' expr <- easy_parse("C%*%(X%*%A)") ; expr %>% show_ast 
+#' drop_parens(expr) %>% show_ast()
+#' expr <- easy_parse("(C%*%X)%*%A") ; expr %>% show_ast 
+#' drop_parens(expr) %>% show_ast()
+#' 
+#' # かっこに対する考察
+#' easy_parse("X%*%B%*%C") %>% show_ast()
+#' easy_parse("(X%*%B)%*%C") %>% show_ast()
+#' easy_parse("(X*B)%*%C") %>% show_ast()
+#' easy_parse("X*B%*%C") %>% show_ast() # %*%が＊よりも優先度高い
+#' 
+#' second factor
+#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' expr[[3]] <- easy_parse("X%*%B"); show_ast(expr)
+#' expr[[3]] <- easy_parse("(X%*%B)"); show_ast(expr)
+#' 
+#' first factor
+#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' expr[[2]] <- easy_parse("X%*%B"); show_ast(expr)
+#' expr[[2]] <- easy_parse("(X%*%B)"); show_ast(expr)
+#' 
+#' つまり
+#' 1. 構文木に代入する場合は、
+#'   1.1. 左から順にの計算順序から変わる場合は、見た目上の()がつく。そうでない場合は()なし。
+#'   1.2. ()を明示的に入れた場合はちゃんと実際の構文木上も現れる。
+#' 2. 必要不要問わず、"()"つきをパースすると、必ず()が構文木に現れる。
+#' 
+#' expr <- easy_parse("A*C") ; expr %>% show_ast
+#' expr[[2]] <- easy_parse("X%*%B"); show_ast(expr)
+#' expr[[2]] <- easy_parse("(X%*%B)"); show_ast(expr)
+#' 
+#' expr <- easy_parse("A*C") ; expr %>% show_ast
+#' expr[[3]] <- easy_parse("X%*%B"); show_ast(expr)
+#' expr[[3]] <- easy_parse("(X%*%B)"); show_ast(expr)
+#' 
+#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' expr[[2]] <- easy_parse("X*B"); show_ast(expr)
+#' expr[[2]] <- easy_parse("(X*B)"); show_ast(expr)
+#' 
+#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' expr[[3]] <- easy_parse("X*B"); show_ast(expr)
+#' expr[[3]] <- easy_parse("(X*B)"); show_ast(expr)
+#' 
+#' expr <- easy_parse("(X*A)%*%C") ; expr %>% show_ast
+#' expr <- easy_parse("C%*%(X*A)") ; expr %>% show_ast 
+#' 
+#' ということは、構文木上では一度かっこをほぼすべて外しても問題ない。（はず）
+#' 
+#' 
+#' 
+#' easy_parse("X%*%(B*C)") %>% show_ast() # %*%が＊よりも優先度高い
+#' easy_parse("X%*%B*C") %>% show_ast() # %*%が＊よりも優先度高い
+#' easy_parse("X%*%B*C") %>% show_ast() # %*%が＊よりも優先度高い
 #' 
 #' 
 #' @export 
 #' 
 
-drop_parens <- function(expr){
+drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
@@ -224,15 +315,39 @@ drop_parens <- function(expr){
   
   if(is.call(expr)){
     if(expr[[1]] == "("){
-      expr <- drop_parens(expr[[2]])
+      if(in_biop & !all) { 
+        # 温存
+        expr_in <- expr[[2]]
+        if(is.call(expr_in)){
+          if(length(expr_in) == 3){
+            expr_in[[2]] <- drop_parens(expr_in[[2]], in_biop = TRUE, all = all)
+            expr_in[[3]] <- drop_parens(expr_in[[3]], in_biop = TRUE, all = all)
+            expr[[2]] <- expr_in
+            return(expr)
+          }
+        }
+        
+        return(drop_parens(expr[[2]], in_biop = TRUE, all = all))
+      }
+      return(drop_parens(expr[[2]], all = all))
+      
     }else if(length(expr) == 2){
       # ignore unary operator 
-      expr[[2]] <- drop_parens(expr[[2]])
+      expr[[2]] <- drop_parens(expr[[2]], all = all)
+    }else if(length(expr) == 3){
+      expr[[2]] <- drop_parens(expr[[2]], in_biop = TRUE, all = all)
+      expr[[3]] <- drop_parens(expr[[3]], in_biop = TRUE, all = all)
     }
   }
   return(expr)
 }
 
+
+
+# in_biop = T all = T !all= F -> 全外し
+# in_biop = F all = T !all= F -> 全外し
+# in_biop = T all = F !all= T -> 一部残し　
+# in_biop = F all = F !all= T -> 全外し
 
 
 
@@ -371,6 +486,7 @@ cancel_double_expr <- function(expr, sym, inv){
         # expr <- reduce_expr_I(expr)
       }
     
+    # t(S) = S  inv(I) = Iの処理
     sym_logic <- (target_op == "t"   )&&( safe_deparse(info_double$parent[[2]]) %in% sym_mats)
     inv_logic <- (target_op == "inv" )&&( safe_deparse(info_double$parent[[2]]) %in% inv_mats)
     if(sym_logic || inv_logic){

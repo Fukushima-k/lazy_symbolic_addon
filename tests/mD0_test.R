@@ -134,15 +134,47 @@ if(0){
   
   
   
+  
   # to do 
-  # 転置をadd_transposeに
-  # t(t(A)) -> A ; inv(inv(A)) -> A ; A %*% I -> Aに。
-  # mD0_parsed("tr(A*(X))", "X", debug = 1)   
+  # 転置をadd_transposeに　#実装
+  # t(t(A)) -> A ; inv(inv(A)) -> A ; A %*% I -> Aに。 # 実装
+  # mD0_parsed("tr(A*(X))", "X", debug = 1)    #
+  mD0_parsed("tr(A*(X))", "X", debug = 1)    #
+  decompose_MatProd("A*(X)", "X")    #
+  decompose_MatProd("(A*(X))", "X")    #
+  decompose_MatProd("tr((A*(X)))", "X")    #
+  # 構文木上の無駄かっこを外す。
+  # 　decompose("A%*%((X%*%B))")を分解できるように。 # 対応済み
+  #   decompose_MatProd("(A*(X))", "X")    #
+  #   decompose_MatProd("tr((A*(X)))", "X")    #
+  # decomposeで外れるかっこ
+    decompose_MatProd("A*(((X)))", "*")    #
+    decompose_MatProd("((A*((X))))", "*", target_X = "X")    #
+  
+  # 外れないかっこ
+    expr <- "((tr(A*((X)))))"
+    expr <- "((tr((A*(((X)))))))"
+    expr <- "(tr(((X))*A))"
+    expr <- "exp((tr(((X))*A)))"
+    # expr <- "tr(((X))*A)"
+    expr %>% decompose_MatProd("*", target_X = "X")    #
+    expr %>% trace_reorder("X")    #
+    expr %>% mD0(debug = 1)    #
+    
+    
+    
+    
+  # cancel_double_expr(t(t(A)%*%t(B))) -> B%*%Aにできるように。
+  # cancel_double_expr(t(-t(A))) -> -Aにできるように。
+  
   
   
 }
 
 
+Xn %*% An * Cn
+(Xn %*% An) * Cn
+Xn %*% (An * Cn)
 
 # core のみで成立
 
@@ -198,12 +230,13 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("X * A * B", "X"), easy_parse("A*B*X"))
   
   # # hirarchy
-  expect_equal(trace_reorder("A%*%(X%*%B)%*%C", "X"), easy_parse("B %*% C %*% A  %*% X ")) 
-  expect_equal(trace_reorder("A*(X*B)*C", "X"),       easy_parse("B  *  C  *  A   *  X "))
+  expect_equal(trace_reorder("A%*%(X%*%B)%*%C", "X"), easy_parse("B %*% C %*%  A %*% X ")) 
+  expect_equal(trace_reorder("A*(X*B)*C", "X"),       easy_parse("B  *  C  *   A  *  X "))
   expect_equal(trace_reorder("A%*%(X*B)%*%C", "X"),   easy_parse("C %*% A %*% (B  *  X)"))
   expect_equal(trace_reorder("A*(X%*%B)*C", "X"),     easy_parse("C  *  A  *  (X %*% B)")) # この場合は、どう処理をするべきか。
   expect_equal(trace_reorder("A%*%B%*%(F%*%((E%*%(X%*%C))%*%D))", "X") , easy_parse("C %*% D %*% A %*% B %*% F %*% E %*% X"))
   expect_equal(trace_reorder("(A%*%B)%*%(X%*%C)", "X") , easy_parse("C %*% (A %*% B) %*% X"))
+     drop_parens("(A%*%B)%*%(X%*%C)")
      
   # decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
   # decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
@@ -227,7 +260,10 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("A%*%X%*%B%*%X%*%C", "X"), easy_parse("B %*% X %*% C %*% A %*% X"))
   expect_equal(trace_reorder("(A*X)%*%B%*%X%*%C", "X"), easy_parse("B %*% X %*% C %*% (A * X)"))
   
-  
+  # 多重かっこ外し。
+  expect_equal(trace_reorder("tr(A%*%((((X%*%B)))))", "X"), easy_parse("tr(B %*% A %*% X)"))
+  expect_equal(trace_reorder("tr(A%*%((((X*B)))))", "X"), easy_parse("tr(A %*% (B*X))"))
+  expect_equal(trace_reorder("tr(A*((((X%*%B)))))", "X"), easy_parse("tr(A * (X %*% B))"))
 })
 
 test_that("mD0_parsed derivatives", {
@@ -289,9 +325,8 @@ test_that("basic fomula", {
   expect_equal(mD0_parsed("log(tr(A%*%X))", "X")                     ,easy_parse("1/tr(A %*% X) * t(A)"))
 })
 
-test_that("chain rules", {
+test_that("chain rules ", {
   expect_equal(mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)                   , easy_parse("t(t(A) %*% B)"))
-  expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * I) %*% B)"))
   expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * I) %*% B)"))
   expect_equal(mD0_parsed("tr(A*X)", "X", debug = 1)                            , easy_parse("A * t(I)"))
   expect_equal(mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)                 , easy_parse("t(t(-t(inv(B %*% X) %*% A %*% inv(B %*% X))) %*% B)"))
@@ -306,24 +341,6 @@ test_that("chain rules", {
   expect_equal(mD0_parsed("tr(t(A)%*%t(B)%*%t(X*A))")   , easy_parse("t(t(A*I)%*% t(A*I))"))
   expect_equal(mD0_parsed("tr(t(A)%*%t(B)%*%t(t(X)*A))"), easy_parse("t(A*A*I)"))
 })
-
-
-
-trace_reorder("tr(A%*%((X%*%B)))", "X")
-
-
-mD0_parsed("tr(A*(X%*%B))", "X", debug = 1)  
-mD0_parsed("tr(A%*%(X%*%B))", "X", debug = 1)  
-mD0_parsed("tr(A*(X*B))", "X", debug = 1)  
-mD0_parsed("tr(A%*%(X*B))", "X", debug = 1)  
-
-
-mD0_parsed("tr(A%*%(X*B))", "X", debug = 1)  
-
-mD0_parsed("tr(A*(X%*%B)*C)", "X")
-mD0_parsed("A*(X%*%B)*C", "X")
-
-
 
 c(
   "tr(A%*%t(B%*%X))",
@@ -340,6 +357,74 @@ c(
   "tr(A%*%X)"
 ) %>%
   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+
+
+
+# ignore_parens
+
+test_that("chain rules ", {
+  expect_equal(mD0_parsed("tr(A%*%t(B%*%X))", "X", debug = 1)                   , easy_parse("t(t(A) %*% B)"))
+  expect_equal(mD0_parsed("tr(A*(B%*%X))", "X", debug = 1)                      , easy_parse("t(t(A * I) %*% B)"))
+  expect_equal(mD0_parsed("tr(A*X)", "X", debug = 1)                            , easy_parse("A * t(I)"))
+  expect_equal(mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)                 , easy_parse("t(t(-t(inv(B %*% X) %*% A %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(inv(B%*%X))", "X", debug = 1)                     , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)                  , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)          , easy_parse("t(t(-t(inv(B %*% X) %*% -t(inv(t(inv(B %*% X))) %*% 
+    inv(t(inv(B %*% X)))) %*% inv(B %*% X))) %*% B)"))
+  expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)      , easy_parse("t(t(-t(inv(B %*% X) %*% -t(inv(t(inv(B %*% X))) %*% C %*%
+    inv(t(inv(B %*% X)))) %*% inv(B %*% X))) %*% B)"))
+  
+  
+  expect_equal(mD0_parsed("tr(t(A)%*%t(B)%*%t(X*A))")   , easy_parse("t(t(A*I)%*% t(A*I))"))
+  expect_equal(mD0_parsed("tr(t(A)%*%t(B)%*%t(t(X)*A))"), easy_parse("t(A*A*I)"))
+})
+
+# t(t(A)) -> A ; inv(inv(A)) -> A ; A %*% I -> Aに。 # 実装
+# mD0_parsed("tr(A*(X))", "X", debug = 1)    #
+mD0_parsed("tr(A*(X))", "X", debug = 1)    #
+
+# A*X decompose_MatProd()で外す。
+expect_equal(decompose_MatProd("A*(X)", "*", target_X = "X"), decompose_MatProd("A*X", "*", target_X = "X"))
+expect_equal(decompose_MatProd("A*(((X)))", "*", target_X = "X"), decompose_MatProd("A*X", "*", target_X = "X"))
+expect_equal(decompose_MatProd("((A*(((X)))))", "*", target_X = "X"), decompose_MatProd("A*X", "*", target_X = "X"))
+
+# mD0実行時の最初のdrop_parensで外れる部分。
+expect_equal(mD0("tr(A%*%t(X))"),    mD0("(( tr( A %*% (t((X)) ) ) ))"))
+expect_equal(mD0("tr(A%*%t(inv(X)%*%C))"),    mD0("(( tr( A %*% (t(( inv(X) %*% C ))) ) ))"))
+expect_equal(mD0("tr(A%*%t(inv(X)))"),    mD0("(( tr( A %*% (t(( inv(X) ))) ) ))"))
+
+expr <- "exp((tr(((X))*A)))"
+drop_parens(expr)
+mD0(expr)
+
+expr <- "exp(tr(X*A))"
+mD0(expr)
+
+# X以外のsymbolについたかっこは、事後的にdrop_parensしないと外れない。
+# expect_equal(
+  mD0("tr(A%*%t(X))")
+  # , 
+  mD0("(( tr( ((A)) %*% (t((X)) ) ) ))") %>% drop_parens()
+  # )
+
+
+
+
+
+
+# 外れないかっこ
+expr <- "((tr(A*((X)))))"
+expr <- "((tr((A*(((X)))))))"
+expr <- "((tr((A*(inv((X)%*%C))))))"
+# expr <- "(tr(((X))*A))"
+# expr <- "exp(tr(((X))*A))"
+# expr <- "tr(((X))*A)"
+# expr %>% decompose_MatProd("*", target_X = "X")    #
+# expr %>% trace_reorder("X")    #
+expr %>% mD0(debug = 1)    #
+
+
+
 
 
 
