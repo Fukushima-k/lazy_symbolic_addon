@@ -118,6 +118,7 @@ check_numerical_identity <- function(funcs, seed = 123){
     Cn <- -1*matrix(rnorm(3*3), 3)
     O <- 0
     p <- sample(2:10, size = 1)
+    I <- diag(3)
     Gradmn <- gradmn(func, X=Xn, A=An, B=Bn, C=Cn, O=O, p=p, print=0, debug=0 )
     Gradma <- gradma(func, X=Xn, A=An, B=Bn, C=Cn, O=O, p=p, print=0, debug=0 )
     max(abs(Gradmn - Gradma))

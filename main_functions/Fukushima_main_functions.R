@@ -31,7 +31,16 @@
 #' sexpr <- mat2sum( "A%*%B+C" )
 #' printm(sexpr)
 #' sexpr_tex <- to_latex( sexpr, mat2sum=TRUE )
+#' 
+#' to_latex("a*b", print_html = T)
+#' to_latex("A*B", print_html = T)
+#' to_latex("X%.%B", print_html = T)
+#' to_latex("a*B", print_html = T)
+#' 
 #' to_latex("mD0(tr(X%*%B), X)", print_html=T)
+#' to_latex("mD0('tr(X%*%B)', 'X')", print_html=T)
+#' to_latex('mD0("tr(X%*%B)", "X")', print_html=T)
+#' to_latex('mD0("tr(X%*%B)")', print_html=T)
 #'
 #' \dontrun{
 #' library(htmltools)
@@ -223,8 +232,8 @@ to_latex_core <- function(expr_str, dollar = TRUE,
         # 分数：a / b を \frac{a}{b} に変換
         return(paste0("\\frac{", rec_convert(e[[2]]), "}{", rec_convert(e[[3]]), "}"))
       } else if (op == "*") {
-        # 乗算：a * b を a \cdot b に変換
-        # safe_prod：a * b を a \odot b に変換
+        # 乗算：a * b を \odotか " "に変換
+        # safe_prod：a * b をすべて a \cdot b に変換
         lhand <- rec_convert(e[[2]])
         rhand <- rec_convert(e[[3]])
         
@@ -238,6 +247,12 @@ to_latex_core <- function(expr_str, dollar = TRUE,
           }
         }
         return(paste0(lhand, " \\cdot ", rhand))
+      } else if (op == "%.%") {
+        # 乗算：a %.% b を a \odot b に変換
+        # safe_prod：a * b を a \odot b に変換
+        lhand <- rec_convert(e[[2]])
+        rhand <- rec_convert(e[[3]])
+        return(paste0(lhand, " \\odot ", rhand))
       } else if (op %in% c("+", "-")) {
         if (length(e) == 2) {
           # 単項マイナスorプラスの場合
@@ -269,9 +284,14 @@ to_latex_core <- function(expr_str, dollar = TRUE,
         
         # 追加終了
         
-      } else if (op == "mD0"){
+      } else if (op %in% c("mD0", "mD")){
+        if(length(e) == 2){
+          e[[3]] <- "X"
+        }
+        if(is.character(e[[2]])) e[[2]] <- parse(text = e[[2]])[[1]]
+        if(is.character(e[[3]])) e[[3]] <- parse(text = e[[3]])[[1]]
         return(paste0("\\frac{",
-                      "\\partial ",rec_convert(e[[2]]),"}{",
+                      "\\partial\\; ",rec_convert(e[[2]]),"}{",
                       "\\partial ",rec_convert(e[[3]]),"}"
                ))
       } else if(op %in% undefined_macro){

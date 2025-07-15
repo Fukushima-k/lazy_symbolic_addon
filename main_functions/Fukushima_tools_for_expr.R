@@ -5,6 +5,8 @@
 #' easy_parse("X")
 #' easy_parse("tr(X%*%B)")
 #' 
+#' @export
+#' 
 
 easy_parse <- function(text){
   parse(text=text)[[1]]
@@ -17,7 +19,7 @@ easy_parse <- function(text){
 #' 
 #' @examples
 #' 
-#' 
+#' @export
 #'  
 safe_deparse <- function(expr){
   deparse(expr, width.cutoff = 500)
@@ -162,6 +164,8 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
 #' compose_MatProd(terms$terms, terms$ops)
 #' compose_MatProd(terms)
 #' 
+#' 
+#' @export
 #' 
 
 compose_MatProd <- function(terms, op){
@@ -736,6 +740,7 @@ assign_at_expr <- function(expr, path, value) {
 
 #' gsub for expr
 #'
+#' @export
 #'
 gsub_expr <- function(expr, object, replacement){
   
@@ -806,7 +811,7 @@ simplify_power <- function(expr){
 } # end of simplify_power
 
 
-#' Reorder Tracet
+#' Reorder Trace and t
 #'
 #'
 #' @export

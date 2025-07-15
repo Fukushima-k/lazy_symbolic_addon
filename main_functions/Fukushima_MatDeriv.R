@@ -1,182 +1,17 @@
-FreeQ <- function(expr, varname) {
-  # check if expr_str contains varname
-  # Shin-ichi Mayekawa with ChatGPT
-  # 20250706cot
-  
-  # Args:
-  #  expr: 式の文字列
-  #  varname: 文字列で指定された変数名（例: "A1"）
-  #
-  
-  if(is.character(expr))
-    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
-      warning("入力が有効な R 式ではありません")
-      return(NULL)
-    })
-  
-  found <- FALSE
-  
-  find_var <- function(e) {
-    
-    # exit
-    if (found) return(NULL)
-    
-    if (is.symbol(e)) {
-      if (as.character(e) == varname) {
-        found <<- TRUE
-      }
-    } else if (is.call(e) || is.language(e)) {
-      for (i in seq_along(e)) {
-        find_var(e[[i]])
-      }
-    }
-    return(NULL)
-    
-  } # end of find_var
-  
-  find_var(expr)
-  
-  return(!found)
-  
-} # end of FreeQ
-
-
-
-#' Core Function of the Symbolic Derivative of Trace w.r.t a Matrix
-#'
-#' @param expr_str scalar function of a matrix argument
-#' @param X A matrix variable with respect to which the derivative is taken
-#' @param deparse_result = TRUE
-#'
-#' @export
-#'
-
-Dm_core <- function(expr, X_, deparse_result = FALSE){
-  
-  if(is.character(expr))
-    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
-      warning("入力が有効な R 式ではありません")
-      return(NULL)
-    })
-  result <- NULL
-  
-  expr_var <- parse(text= X_)[[1]]
-  
-  invs <- paste0(c("inv", "ginv"), "(", X_, ")")
-  sums <- c("+", "-")
-  prods <- c("*")
-  
-  if(is.call(expr)){
-    
-    #S1
-    if(!grepl(X_, deparse(expr[[2]]))){
-        result <- as.symbol("O")
-    # 一般公式
-    # 23
-    }else if(as.character(expr[[1]]) %in% sums){
-      expr[[2]] <-Dm_core(expr[[2]], X_)
-      expr[[3]] <-Dm_core(expr[[3]], X_)
-      result <- expr
-    # 25
-    }else if(as.character(expr[[1]]) %in% prods){
-      op <- as.character(expr[[1]])
-      lhand_deriv <-Dm_core(expr[[2]], X_) %>% deparse
-      rhand_deriv <-Dm_core(expr[[3]], X_) %>% deparse
-      lhand <- expr[[2]] %>% deparse
-      rhand <- expr[[3]] %>% deparse
-      res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
-      result <- parse(text = res_str)[[1]]
-    }else if(as.character(expr[[1]]) %in% "exp"){
-      result <- call("*", 
-                     expr,
-                     Dm_core(expr[[2]], X_))
-      
-    }else if(as.character(expr[[1]]) %in% "log"){
-      res_str <- glue::glue("1/({deparse(expr[[2]])}) * {Dm_core(expr[[2]], X_, deparse_result = TRUE)}")
-      result <- parse(text = res_str)[[1]]
-    # 特定公式
-    }else if(as.character(expr[[1]]) == "tr"){
-      expr[[2]] <- trace_reorder(expr[[2]], X_)
-      if(as.character(expr[[2]][[1]]) == "%*%"){
-        # トレース内最も右のファクター
-        most_right <- expr[[2]][[3]]
-        # それ以外の左のファクター
-        other_left <- expr[[2]][[2]]
-        if(most_right ==  expr_var){
-          # S2
-          result <- call("t", other_left)
-        } else if(deparse(most_right) %in% invs){
-          #S3.1 3.2
-          target <- invs[invs %in% deparse(most_right)]
-          res_str <- glue::glue("-t({target}%*% {deparse(other_left)} %*%{target})")
-          result <- parse(text = res_str)[[1]]
-        } else if(most_right[[1]] == "^"){
-          # S7
-          power <- most_right[[3]]
-          if(is.call(power)){
-            if(power[[1]]=="("){
-              p <- power[[2]]
-              if(is.symbol(p)){
-                power[[2]] <- call("-", p, 1)
-              }else{
-                power[[2]] <- p-1
-              }
-              most_right[[3]] <- power
-              res_str <- glue::glue("{p}*({deparse(most_right)} * t({other_left}))")
-              result <- parse(text = res_str)[[1]]
-            }
-          } 
-        }else if(grepl(X_, deparse(most_right)) | grepl("*", deparse(most_right))){
-          #S6
-          if(most_right[[1]] == "(")
-            most_right <- most_right[[2]]
-          # アダマール積は交換可能
-          new_right <- trace_reorder(most_right, "X", "*")
-          if(new_right[[1]] == "*"){
-            right_in_right <- new_right[[3]]
-            left_in_right <-  new_right[[2]]
-            
-            if(right_in_right == expr_var){
-              res_str <- glue::glue("{deparse(left_in_right)} * t({other_left})")
-              result <- parse(text = res_str)[[1]]
-            }
-          }
-        }
-      }
-    }else if(as.character(expr[[1]]) == "det") {
-      # S4
-      if(expr[[2]] == expr_var){
-        res_str <- glue::glue("det({X_})*inv(t({X_}))")
-        result <- parse(text = res_str)[[1]]
-      }
-      
-    } 
-  }
-  
-  
-  if(is.null(result)) result <- "undefined"
-  
-  if(deparse_result){
-    result <- deparse(result)
-  }
-  return(result)
-  
-} # end of Dm_core
-
-
-
-
-
 
 #' 
 #' 
 #' @export
 
-mD0 <- function( expr, X_="X", print=1, debug=0){
+mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
   # product rule for trace
   # Shin-ichi Mayekawa
   # 20250705cot,06cot,07,08
-  #
+  # modified by Dr.F
+  # recursion depth: 20250714
+  # add .tc to mD0 call: 20250713
+  # add drop_parens safe_deparse and add I%*%: 20250712
+  # 
   
   # Given a matrix A which does not contain X,
   # mD0 knows mD0( tr(A%*%X), X )  or  mD0( tr(A%*%inv(X)), X ).
@@ -190,6 +25,17 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
   # Then, mD0 knows mD0( tr(A(X)%*%Xc),X ) and accordingly, mD0(tr(A(X)%*%X),X).
   #
   
+  # the recursive depth
+  depth=sys.nframe()
+  # printm(depth)
+  if( depth > 10 ){
+    cat("\nerror1:(mD0) Too many recursive calls: Job Abandoned.\n\n")
+    printm(expr)
+    stop()
+  }
+  
+  # shortcut for trace_chain
+  .tc=trace_chain
   
   
   
@@ -208,7 +54,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
   expr_out <- drop_parens(expr)
   
   if(expr != expr_out){
-    if(print) cat("drop parens: \n")
+    if (trace_chain) cat("drop parens: \n")
     if(debug) cat(paste0(safe_deparse(expr), " -> ", safe_deparse(expr_out), "\n"))
     expr <- expr_out
   }
@@ -218,7 +64,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     # S1
     if(FreeQ(expr, X_)){
       # S1: no X
-      if (print) cat("S1: tr(A)\n")
+      if (trace_chain) cat("S1: tr(A)\n")
       return("O")
     }
     
@@ -227,10 +73,12 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     # rule (23)
     sums <- c("+", "-")
     if (as.character(expr[[1]]) %in% sums) {
-      if (print) cat("rule(23): mD0(A+B,X) = mD0(A,X) + mD0(B,X)\n")
-      cat("mD of sum is converted to sum of mDs.\n")
-      expr[[2]] <- parse(text = mD0(expr[[2]], X_))[[1]]
-      expr[[3]] <- parse(text = mD0(expr[[3]], X_))[[1]]
+      if (trace_chain){
+        cat("rule(23): mD0(A+B,X) = mD0(A,X) + mD0(B,X)\n")
+        cat("mD of sum is converted to sum of mDs.\n")
+      }
+      expr[[2]] <- parse(text = mD0(expr[[2]], X_, trace_chain=.tc))[[1]]
+      expr[[3]] <- parse(text = mD0(expr[[3]], X_, trace_chain=.tc))[[1]]
       if( debug ) show_ast(expr)
       res = safe_deparse(expr)
       return(res)
@@ -240,10 +88,10 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     # rule (25)
     prods <- c("*")
     if(as.character(expr[[1]]) %in% prods){
-      if (print) cat("rule(25): mD0(A*B,X) = mD0(A*Bc,X) + mD0(Ac*B,X)\n")
+      if (trace_chain) cat("rule(25): mD0(A*B,X) = mD0(A*Bc,X) + mD0(Ac*B,X)\n")
       op <- as.character(expr[[1]])
-      lhand_deriv <- mD0(expr[[2]], X_)
-      rhand_deriv <- mD0(expr[[3]], X_)
+      lhand_deriv <- mD0(expr[[2]], X_, trace_chain=.tc)
+      rhand_deriv <- mD0(expr[[3]], X_, trace_chain=.tc)
       lhand <- safe_deparse(expr[[2]])
       rhand <- safe_deparse(expr[[3]])
       res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
@@ -262,20 +110,20 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     if(N1 == 2 & N2 == 2){
       f1_op <- as.character(expr[[1]])
       if(f1_op %in% c("exp", "log")){
-        if (print) cat("rule(24): the chain rule......")
+        if (trace_chain) cat("rule(24): the chain rule......")
         if(f1_op == "exp")
           df1_factor <- expr
         if(f1_op == "log")
           df1_factor <- call("/", 1, expr[[2]])
         
-        df2_factor <- mD0(expr[[2]], X_)
+        df2_factor <- mD0(expr[[2]], X_, trace_chain=.tc)
         res = call("*", df1_factor, parse(text=df2_factor)[[1]])
         res = safe_deparse(res)
         return(res)
       }
       # else{
-      #   if (print) cat("rule(26): the chain rule......")
-      #   if (print) cat("In general, rule(26) is not yet available.")
+      #   if (trace_chain) cat("rule(26): the chain rule......")
+      #   if (trace_chain) cat("In general, rule(26) is not yet available.")
       #   df1_factor <- parse(text="df1(f2)/df2")[[1]]
       #   df2_factor <- mD0(expr[[2]], X_)
       #   res = call("*", df1_factor, parse(text=df2_factor)[[1]])
@@ -289,7 +137,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
     if(0){
       # 開発中領域#########################################################################################
       
-      if (print) cat("C1: using chain rule for all ...\n")
+      if (trace_chain) cat("C1: using chain rule for all ...\n")
       
       expr1 = safe_deparse(expr)
       if( debug ) printm(expr1)
@@ -320,7 +168,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       } 
       
       # mD0(f(FX), X)
-      res1 = mD0(expr1, "FX")
+      res1 = mD0(expr1, "FX", trace_chain=.tc)
       if (debug) printm(res1)
       
       
@@ -329,7 +177,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       if (debug) printm(res1FX)
       
-      res = mD0(res1FX, X_)
+      res = mD0(res1FX, X_, trace_chain=.tc)
       
       if (debug) printm(res)
       
@@ -446,12 +294,12 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             # Here, other_left does not contain X or inv(X)
             if (mR == X_) {
               # S2
-              if (print) cat("S2: tr(A%*%X)\n")
+              if (trace_chain) cat("S2: tr(A%*%X)\n")
               res = paste0("t(", oL, ")")
             }
             else if (mR %in% invs) {
               # S3.1 S3.2 
-              if (print) cat("S3.1 or 3.2: tr(A%*%inv(X))\n")
+              if (trace_chain) cat("S3.1 or 3.2: tr(A%*%inv(X))\n")
               inv_X <- invs[invs %in% mR]
               # res_str <- glue::glue("-t({target}%*% {deparse(other_left)} %*%{target})")
               # result <- parse(text = res_str)[[1]]
@@ -459,7 +307,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             }
             else if (hp == 1) {
               # S6
-              if (print) cat("S6: tr((A*X)%*%B)\n")
+              if (trace_chain) cat("S6: tr((A*X)%*%B)\n")
               # if( debug ) printm( deparse(most_right[[2]][[1]]) )
               AA = safe_deparse(most_right[[2]]) #modified##############################################
               # if( debug ) printm(mR,oL, AA)
@@ -473,7 +321,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           expr1 = safe_deparse(expr)
           N <- length(most_right)
           if(N>2 & !FreeQ(most_right[[2]], X_) & most_right[[1]]=="*"){
-            if (print) cat("P2: using product rule...\n")
+            if  (trace_chain) cat("P2: using product rule...\n")
             
             # expr1 = safe_deparse(expr)
             if( debug ) printm(expr1)
@@ -483,7 +331,6 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
             FX = safe_deparse(most_right[[2]])
             GX = safe_deparse(most_right[[3]])
             
-            expr
             term1 <- gsub_expr(expr, GX, "G_X")
             term2 <- gsub_expr(expr, FX, "F_X")
             
@@ -491,8 +338,8 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
               printm(expr, term1, term2)
             }
             
-            dterm1 <- mD0(term1, X_)
-            dterm2 <- mD0(term2, X_)
+            dterm1 <- mD0(term1, X_, trace_chain=.tc)
+            dterm2 <- mD0(term2, X_, trace_chain=.tc)
             
             res_temp <- parse(text = glue::glue("{dterm1}+{dterm2}"))[[1]]
             res_temp
@@ -505,7 +352,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           # Here, mR is not X_ nor inv(X_) but contains X_.
           # must use chain rule
 
-          if (print) cat("C1: using chain rule...\n")
+          if (trace_chain) cat("C1: using chain rule...\n")
 
           expr1 = safe_deparse(expr)
           if( debug ) printm(expr1)
@@ -536,7 +383,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           } 
           
           # mD0(f(FX), X)
-          res1 = mD0(expr1, "FX")
+          res1 = mD0(expr1, "FX", trace_chain=.tc)
           if (debug) printm(res1)
           
           
@@ -545,7 +392,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           
           if (debug) printm(res1FX)
           
-          res = mD0(res1FX, X_)
+          res = mD0(res1FX, X_, trace_chain=.tc)
           
           if (debug) printm(res)
           
@@ -579,7 +426,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           
           # Here, mR is either X_, inv(X_) or Hadamar Prod
           # and other_left contains X_, therefor, both factors contain X_
-          if (print) cat("P1: using product rule.....\n")
+          if (trace_chain) cat("P1: using product rule.....\n")
           if (debug) cat("mD0(tr(oL %*% mR)) = mD0(tr(oL %*% mRc)) + mD0(tr(oLc %*% mR))\n")
           if (debug) printm(mR, oL)
           # first_term <- second_term <- call("mD0", expr, as.symbol(X_))
@@ -596,7 +443,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           
           
           
-          res1 = mD0(safe_deparse(first_term), X_)
+          res1 = mD0(safe_deparse(first_term), X_, trace_chain=.tc)
           res11 = gsub_expr(res1, "mRc", mR)
           # res11 = gsub("mRc", mR, res1, fixed = TRUE)
           # res11 = gsub(" ", "", res11)
@@ -604,7 +451,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
           if (debug) printm(res1, res11)
           if (debug) cat("*** processing the 2nd term* ***\n")
           
-          res2 =  mD0(safe_deparse(second_term), X_)
+          res2 =  mD0(safe_deparse(second_term), X_, trace_chain=.tc)
           res22 = gsub_expr(res2, "oLc", oL)
           # res22 = gsub("oLc", oL, res2)
           # res22 = gsub(" ", "", res22)
@@ -626,9 +473,9 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
         default_expr <-  safe_deparse(expr)
         expr[[2]] <- call("%*%", as.symbol("I"), expr[[2]])
 
-        res <- mD0(expr, X_)
+        res <- mD0(expr, X_, trace_chain=.tc)
         if(!grepl("mD0", res)){
-          if(print) cat("\nTechnic: add I %*% \n")
+          if (trace_chain) cat("\nTechnic: add I %*% \n")
           if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
           res <- safe_deparse(reduce_expr_I(res))
 
@@ -647,7 +494,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       # S4
       if (as.character(expr[[1]]) == "det"){
         if(expr[[2]] == expr_var){
-          if (print) cat("S4 : mD0(det(X), X)")
+          if (trace_chain) cat("S4 : mD0(det(X), X)")
           res_str <- glue::glue("det({X_})*inv(t({X_}))")
           # result <- parse(text = res_str)[[1]]
           return(res_str)
@@ -656,7 +503,7 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
       
       
       # other scalar functions
-      cat("\n**** Currently, trace and det are the only function available.***\n")
+      cat("\n**** Currently, trace and det are the only functions available.***\n")
       res = paste0("mD0(", safe_deparse(expr), ", ", X_, ")")
       return(res)
       
@@ -671,101 +518,3 @@ mD0 <- function( expr, X_="X", print=1, debug=0){
   } # end of non-call
   
 } # end of mD0
-
-
-gradma <- function (expr, ..., values = NULL, dexpr = NULL,sym = 0, ntogoback = 1, 
-          print = 0, debug = 0) 
-{
-  temp = analyze_3d_val(values = values, debug = debug, ntogoback = ntogoback, 
-                        ...)
-  if (0) {
-    namename = temp$namename
-    nname = temp$nname
-    pat2 = temp$pat2
-    arg = temp$arg
-    dimarg = temp$dimarg
-    argval = temp$argval
-  }
-  arg = temp$arg
-  namename = temp$namename
-  nname = temp$nname
-  pat2 = temp$pat2
-  for (i in 1:nname) {
-    code = paste(namename[i], "=pat2[[i]]", sep = "")
-    if (debug >= 2) 
-      printm(i, code)
-    eval(parse(text = code))
-  }
-  vv = c("arg", "atd", "code", "debug", "expr", "expr0", "i", 
-         "constants", "print", "name", "namename", "nname", "ntogoback", 
-         "pat2", "vv", "values", "sym", "dimarg", "argval", "temp", 
-         arg)
-  const = setdiff(ls(), vv)
-  const0 = paste(const, collapse = ", ")
-  if (is.null(dexpr)) {
-    # dexpr = Dm_core(expr, arg, deparse_result = 1)
-    # dexpr = mD0(expr, arg)
-    dexpr = paste0(mD0(expr, arg), collapse ="") # exprは長すぎると勝手に改行する。deparseしたらその改行で別れた文字列ベクトルになってしまう。
-  }
-  dexpr = gsub("inv", "Inv", dexpr)
-  gradma = Eval(dexpr, values = values, ..., fullsymb = 1, 
-                check = 0)
-  if (sym) {
-    gradma = gradma + t(gradma) - Diag(gradma)
-  }
-  if (print) {
-    cat("\nInput expression \"", expr, "\" was analytically differentiated", 
-        sep = "")
-    cat(" with respect to ", arg, ".\n", sep = "")
-    printm(dexpr)
-    cat("The above expression was evaluated with the following values:\n")
-    print(pat2)
-    cat("The result, with sym =", sym, ", is\n")
-    printm(gradma)
-  }
-  return(gradma)
-}
-
-
-
-
-show_ast <- function( expr, indent_char=" ", nindent=1 ) {
-  # AST (abstruct syntax tree) の構造を表示する
-  # Shin-ichi Mayekawa with ChatGPT
-  # 20250706cot
-  # title added: 20250707
-  # when expr is an expression: 20250708
-  # nindent: 20250708
-  #
-  
-  # expression を変換
-  if( is.expression(expr) ) expr=as.character(expr)
-  # 文字列を式に変換
-  if (is.character(expr))
-    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
-      warning("入力が有効な R 式ではありません")
-      return(NULL)
-    })
-  
-  cat("AST of", safe_deparse(expr), "\n")
-  # 再帰的に表示
-  recurse <- function(expr, indent_char = " ", nindent=1) {
-    if (is.call(expr)) {
-      cat(indent_char, "call: ", safe_deparse(expr[[1]]), "\n")
-      for (i in 2:length(expr)) {
-        recurse(expr[[i]]
-                , paste0(indent_char, substr(indent_char,1,nindent)), nindent=nindent)
-      }
-    } else if (is.symbol(expr)) {
-      cat(indent_char, "symbol: ", as.character(expr), "\n")
-    } else {
-      cat(indent_char, "const: ", expr, "\n")
-    }
-  } # end of recurse
-  
-  recurse(expr, indent_char, nindent)
-  
-  # return( expr )
-  
-} # end of show_ast
-
