@@ -316,6 +316,10 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
   if(is.call(expr)){
     if(expr[[1]] == "("){
       if(in_biop & !all) { 
+        # in_biop = T all = T !all= F -> 全外し
+        # in_biop = F all = T !all= F -> 全外し
+        # in_biop = T all = F !all= T -> 一部残し　
+        # in_biop = F all = F !all= T -> 全外し
         # 温存
         expr_in <- expr[[2]]
         if(is.call(expr_in)){
@@ -344,10 +348,81 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
 
 
 
-# in_biop = T all = T !all= F -> 全外し
-# in_biop = F all = T !all= F -> 全外し
-# in_biop = T all = F !all= T -> 一部残し　
-# in_biop = F all = F !all= T -> 全外し
+#' reorder unary oparators
+#' 
+#' @examples
+#' unary_reorder_expr("(t(inv(A)))", "inv")
+#' unary_reorder_expr("(t(-(inv(A))))", "inv")
+#' unary_reorder_expr("t(-(gune(A)))", "gune")
+#' unary_reorder_expr("gune(t(-(inv(A))))", "inv")
+#' unary_reorder_expr("(t(B + (inv(A))))", "inv")
+#' 
+#' unary_reorder_expr("t(-(gune(A)))", "gune", add_exch_op = "gune")
+#' unary_reorder_expr("gune(t(-(inv(A))))", "inv", add_exch_op = "gune")
+#' 
+#' unary_reorder_expr("t(-(t(-(inv(A)))))", "inv", exchangable_ops = c("-", "(", "inv"))
+#' 
+#' unary_reorder_expr("t(inv(A))", "t")
+#' @export
+#' 
+
+unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c("inv", "(", "t","-")){
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  if(!missing(add_exch_op)) exchangable_ops <- c(exchangable_ops, add_exch_op)
+  
+  if(!(most_out %in% exchangable_ops)) return(expr)
+  
+  info_unary_list <- grep_expr(expr, most_out)
+  
+  if(length(info_unary_list)==0) return(expr) 
+    
+  info_unary <- info_unary_list[[1]]
+  if(is.null(info_unary$parent)) return(expr)
+  
+  paths_to_mostout <- info_unary$path
+  
+  maxdepth <- length(paths_to_mostout)
+  
+  ops_to_mostout <- sapply(1:maxdepth, function(depth){
+    temp_path <- paths_to_mostout
+    temp_path <- temp_path[1:depth]
+    temp_path[depth] <- 1
+    deparse(assign_at_expr(expr, temp_path))
+  })
+  
+  continue <- TRUE
+  for(depth in (maxdepth-1):0){
+    if(continue){
+      if(depth==0){
+        expr[[1]] <- as.symbol(most_out)
+      }else
+      if(as.character(ops_to_mostout[depth]) %in% exchangable_ops){
+        temp_path <- paths_to_mostout
+        temp_path <- c(temp_path[1:depth], 1)
+        expr <- assign_at_expr(expr, temp_path, as.symbol(ops_to_mostout[depth]))
+        
+        if(depth == 1){
+        }
+      }else{
+        temp_path <- paths_to_mostout
+        temp_path <- c(temp_path[1:depth], 1)
+        expr <- assign_at_expr(expr, temp_path, as.symbol(most_out))
+        continue <- FALSE
+      }
+    }
+  }
+  
+  return(expr)
+  
+}
+
+
+
 
 
 
@@ -422,12 +497,9 @@ reduce_expr_I <- function(expr){
     expr <- assign_at_expr(expr, target_path, remain)
     expr <- reduce_expr_I(expr)
     return(expr)
-    # expr <- reduce_expr_I(expr)
   }
-
   return(expr)
 }
-
 
 
 #' t(t(A)) -> A in expr
@@ -446,10 +518,18 @@ reduce_expr_I <- function(expr){
 #' cancel_double_expr("t(I)%*%B%*%t(S)%*%inv(S)", sym = "S")
 #' cancel_double_expr("t(I)%*%B%*%t(S)%*%inv(S) * inv(I)", sym = "S")
 #' 
+#' cancel_double_expr("t(inv(t(inv(A)))) %*% -inv(t(-(B)))", use_unary_reorder=TRUE)
+#' cancel_double_expr("-inv(t(-(B)))", use_unary_reorder=TRUE)
+#' 
+#' cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # これ期待通りの挙動ではないので要修正
+#' 
 #' @export
 #' 
 
-cancel_double_expr <- function(expr, sym, inv){
+
+
+
+cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
@@ -459,7 +539,9 @@ cancel_double_expr <- function(expr, sym, inv){
   sym_mats <- c("I")
   inv_mats <- c("I")
   
-  double_op <- c("t", "inv")
+  double_op <- c("t", "inv", "-")
+  
+  
   
   if(!missing(sym)) sym_mats <- c(sym_mats, sym)
   if(!missing(inv)) inv_mats <- c(inv_mats, inv)
@@ -473,7 +555,7 @@ cancel_double_expr <- function(expr, sym, inv){
     if(is.null(info_double$parent)) return(expr)
     
     target_op <- as.character(info_double$match)
-    if(is.call(info_double$parent[[2]]))
+    if(is.call(info_double$parent[[2]])){
       if((as.character(info_double$parent[[2]][[1]]) %in% target_op)){
         
         depth <- length(info_double$path)
@@ -485,6 +567,21 @@ cancel_double_expr <- function(expr, sym, inv){
         return(expr)
         # expr <- reduce_expr_I(expr)
       }
+      if(use_unary_reorder){
+        temp_expr <- info_double$parent[[2]] %>% unary_reorder_expr(target_op)
+        if(as.character(temp_expr[[1]])==target_op){
+          
+          depth <- length(info_double$path)
+          target_path <- info_double$path[-depth]
+          remain <- temp_expr[[2]]
+          expr <- assign_at_expr(expr, target_path, remain)
+          # expr <- cancel_double_expr(expr)
+          expr <- cancel_double_expr(expr, sym = sym_mats, inv=inv_mats)
+          return(expr)
+          # expr <- reduce_expr_I(expr)
+        }
+      }
+    }
     
     # t(S) = S  inv(I) = Iの処理
     sym_logic <- (target_op == "t"   )&&( safe_deparse(info_double$parent[[2]]) %in% sym_mats)
@@ -546,10 +643,12 @@ grep_expr <- function(expr, varname) {
     })
   
   if(is.character(varname))
-    varname <- lapply(varname, function(expr)tryCatch(parse(text = expr)[[1]], error = function(e) {
+    varname <- lapply(varname, function(expr) {
+      if(expr %in% c("+", "-", "(")) return(as.symbol(expr))
+      tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
       return(NULL)
-    }))
+    })})
   varname_post_parsed_str <- sapply(varname, deparse)
   
   matches <- list()

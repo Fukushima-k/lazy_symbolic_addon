@@ -166,7 +166,8 @@ if(0){
     
   # cancel_double_expr(t(t(A)%*%t(B))) -> B%*%Aにできるように。
   # cancel_double_expr(t(-t(A))) -> -Aにできるように。
-  
+    
+  # cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # これ期待通りの挙動ではないので要修正
   
   
 }
