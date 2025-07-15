@@ -28,11 +28,11 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
   # the recursive depth
   depth=sys.nframe()
   # printm(depth)
-  if( depth > 10 ){
-    cat("\nerror1:(mD0) Too many recursive calls: Job Abandoned.\n\n")
-    printm(expr)
-    stop()
-  }
+  # if( depth > 1000 ){
+  #   cat("\nerror1:(mD0) Too many recursive calls: Job Abandoned.\n\n")
+  #   printm(expr)
+  #   stop()
+  # }
   
   # shortcut for trace_chain
   .tc=trace_chain

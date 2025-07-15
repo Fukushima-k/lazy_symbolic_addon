@@ -22,7 +22,7 @@ easy_parse <- function(text){
 #' @export
 #'  
 safe_deparse <- function(expr){
-  deparse(expr, width.cutoff = 500)
+  gsub(" ", "", deparse(expr, width.cutoff = 500))
 } # end of safe_deparse
 
 
