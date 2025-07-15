@@ -363,7 +363,7 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           FX = safe_deparse(most_right[[N]])
           
           if(N>2 & !FreeQ(most_right[[2]], X_)){
-            # C1yはF(X)以外にXが影響しているので使えない。
+            # C1はF(X)以外にXが影響しているので使えない。
             cat("\n*** tr(A%*%(F(X)%*%G(X))) is not yet available.***\n")
             res=paste0("mD0(",safe_deparse(expr),", ",X_,")")
             cat(res);cat("\n\n")
@@ -371,14 +371,14 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           }
           
           if (debug) printm(FX)
+          
+          expr1 <- gsub_expr(expr, FX, replacement = "FX")
 
-          expr1 = gsub(FX, "FX", expr1, fixed = TRUE)
-          expr1 = gsub(" ", "", expr1)
-
-          if (debug) printm(expr1)
-          if (debug){
-            cat("mD0(f(F(X)), X) = tr(t(mD0(f(FX), FX)) %*% F(X))\n")
-            cat("f(FX) =", expr1, "\n")
+          if (debug) {
+            expr1_str <- safe_deparse(expr1)
+            printm(expr1_str)
+            cat("mD0(f(F(X)), X) = mD0(tr(t(mD0(f(FX), FX)) %*% F(X)), X)\n")
+            cat("f(FX) =", expr1_str, "\n")
             cat("F(X) =", FX, "\n\n")
           } 
           
@@ -386,15 +386,15 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           res1 = mD0(expr1, "FX", trace_chain=.tc)
           if (debug) printm(res1)
           
+          res1FX = easy_parse("tr(t(RES1)%*%FX)")
+          res1FX = gsub_expr(res1FX, "FX", FX)
           
-          res1FX = paste0("tr(t(RES1)%*%", FX, ")")
-          res1FX = gsub(" ", "", res1FX)
-          
-          if (debug) printm(res1FX)
+          if (debug) printm(safe_deparse(res1FX))
           
           res = mD0(res1FX, X_, trace_chain=.tc)
           
           if (debug) printm(res)
+          
           
           res1 = gsub("RES1", res1, res, fixed = TRUE)
           res1 = gsub("FX", FX, res1, fixed = TRUE)

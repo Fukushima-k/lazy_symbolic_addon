@@ -796,7 +796,7 @@ simplify_power <- function(expr){
     
     if(op =="%*%"){
       length_encoding <- rle(symbols_past)
-    }else if(op == "*"){
+    }else if(op %in% c("%.%", "*")){
       tbl_symbol <- table(symbols_past)
       length_encoding <- list(lengths = paste0("(", tbl_symbol, ")"), values = names(tbl_symbol))
     }
@@ -814,12 +814,21 @@ simplify_power <- function(expr){
 #' Reorder Trace and t
 #'
 #'
+#' @examples 
+#' # see tests/mD0_test.R
+#' 
+#' trace_reorder("tr(A%*%(X*C))", "X")
+#' 
+#' trace_reorder("tr(A%*%(X*B%.%C))","X")
+# trace_reorder("tr(A%*%(t(t(X*B)*C)))","X")
+mD0("tr(A%*%(t(t(X*B)*C)))","X")
+#'
 #' @export
 #'
 #'
 #'
 
-trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
+trace_reorder <- function(expr, X_, op=c("both", "%*%", "*", "%.%"), attr = FALSE){
   # X_ become most right side
   op = match.arg(op)
   
@@ -842,13 +851,13 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
     expr <- drop_parens(expr)
     
     
-    grepl("C", as.character(expr))
-    as.character(expr) %in% "C"
-    # if(deparse(expr) %in% paste0("t(", X_, ")"))
+    # grepl("C", as.character(expr))
+    # as.character(expr) %in% "C"
+    # # if(deparse(expr) %in% paste0("t(", X_, ")"))
     
     
     if(op == "both" & is.call(expr)){
-      if(as.character(expr[[1]]) %in% c("%*%", "*")){
+      if(as.character(expr[[1]]) %in% c("%*%", "*", "%.%")){
         op = as.character(expr[[1]])
       }
     }
@@ -876,10 +885,15 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*"), attr = FALSE){
         target <- transpose_expr(target)
         transposed = TRUE
       }else if(N>1){
-        # reorder target factor
+        # reorder target factor * 
         target_temp <- trace_reorder(target, X_, op = "*", attr = TRUE)
         target <- target_temp$expr
         transposed <- target_temp$transposed
+        # reorder target factor %.% 
+        # target_temp <- trace_reorder(target, X_, op = "%.%", attr = TRUE)
+        # target <- target_temp$expr
+        # transposed <- xor(target_temp$transposed, transposed)
+        
         temp_current[[X_index]] <- target
       }
       
