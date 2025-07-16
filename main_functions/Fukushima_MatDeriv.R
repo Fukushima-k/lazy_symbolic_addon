@@ -372,18 +372,18 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           
           if (debug) printm(FX)
           
-          expr1 <- gsub_expr(expr, FX, replacement = "FX")
+          fFX <- gsub_expr(expr, FX, replacement = "FX")
 
           if (debug) {
-            expr1_str <- safe_deparse(expr1)
-            printm(expr1_str)
+            fFX_str <- safe_deparse(fFX)
+            printm(fFX_str)
             cat("mD0(f(F(X)), X) = mD0(tr(t(mD0(f(FX), FX)) %*% F(X)), X)\n")
-            cat("f(FX) =", expr1_str, "\n")
+            cat("f(FX) =", fFX_str, "\n")
             cat("F(X) =", FX, "\n\n")
           } 
           
           # mD0(f(FX), X)
-          res1 = mD0(expr1, "FX", trace_chain=.tc)
+          res1 = mD0(fFX, "FX", trace_chain=.tc)
           if (debug) printm(res1)
           
           res1FX = easy_parse("tr(t(RES1)%*%FX)")

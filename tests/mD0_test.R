@@ -392,7 +392,9 @@ test_that("chain rules ", {
   expect_equal(mD0_parsed("tr(A*X)", "X", debug = 1)                            , easy_parse("A * t(I)"))
   expect_equal(mD0_parsed("tr(A%*%inv(B%*%X))", "X", debug = 1)                 , easy_parse("t(t(-t(inv(B %*% X) %*% A %*% inv(B %*% X))) %*% B)"))
   expect_equal(mD0_parsed("tr(inv(B%*%X))", "X", debug = 1)                     , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
+
   expect_equal(mD0_parsed("tr(t(inv(B%*%X)))", "X", debug = 1)                  , easy_parse("t(t(-t(inv(B %*% X) %*% inv(B %*% X))) %*% B)"))
+
   expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))))", "X", debug = 1)          , easy_parse("t(t(-t(inv(B %*% X) %*% -t(inv(t(inv(B %*% X))) %*%
     inv(t(inv(B %*% X)))) %*% inv(B %*% X))) %*% B)"))
   expect_equal(mD0_parsed("tr(t(inv(t(inv(B%*%X)))%*%C))", "X", debug = 1)      , easy_parse("t(t(-t(inv(B %*% X) %*% -t(inv(t(inv(B %*% X))) %*% C %*%
