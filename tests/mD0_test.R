@@ -6,6 +6,7 @@ library(tidyr)
 
 if(0){
   testthat::test_file("tests/mD0_test.R")
+  modify_math_operators()
   
   source("main_functions/Fukushima_MatDeriv.R")
   source("main_functions/Fukushima_main_functions.R")
@@ -546,8 +547,38 @@ c(
 mD0("tr(A%*%(t(t(X*B)*C)))")
 
 
+trace_reorder("(t(C) * (t(B) %.% X))", "X")
+trace_reorder("tr(C %*% (B * t(X)))", "X")
+trace_reorder("tr(C %*% (B %.% t(X)))", "X")
+
+trace_reorder("tr(C %*% (C * B %.% t(X)))", "X")
+trace_reorder("tr(C %*% (C %.% B * t(X)))", "X")
+trace_reorder("tr(C %*% (C*(B * t(X))))", "X")
+
+
+# トレース内 * %.%の確認中
+# comparison: version *, version %.%, and reorderd version
+c("tr(C %*% (C*(B %.% t(X))))",
+  "tr(C %*% (C*(B * t(X))))",
+  "tr(t(C) %*% (t(C) * (t(B) %.% X)))" #trace_reorder("tr(C %*% (C*(B %.% t(X))))", "X")
+  ) %>% 
+  lapply(function(x)eval(parse(text = x)))
+
+
+# mD0("tr(A%*%(B%.%X))")
+# mD0("(t(C) * (t(B) %.% X))")
+
 c(
   "tr(A%*%(t(t(X*B)*C)))",
+  "tr(A%*%(B%.%X))",
+  "tr(C %*% (C * B %.% t(X)))",
+  # 
+  "tr(t(C) * (t(B) %.% X))",
+  "tr(C %*% (B * t(X)))",
+  "tr(C %*% (B %.% t(X)))",
+  "tr(C %*% (C * B %.% t(X)))",
+  "tr(C %*% (C %.% B * t(X)))",
+  "tr(C %*% (C*(B * t(X))))",
   "tr(A%*%X)"
 ) %>%
   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)

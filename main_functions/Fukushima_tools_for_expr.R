@@ -9,7 +9,10 @@
 #' 
 
 easy_parse <- function(text){
-  parse(text=text)[[1]]
+  if(is.character(text))
+    parse(text=text)[[1]]
+  else
+    text
 } # end of easy_parse
 
 
@@ -820,8 +823,14 @@ simplify_power <- function(expr){
 #' trace_reorder("tr(A%*%(X*C))", "X")
 #' 
 #' trace_reorder("tr(A%*%(X*B%.%C))","X")
-# trace_reorder("tr(A%*%(t(t(X*B)*C)))","X")
-mD0("tr(A%*%(t(t(X*B)*C)))","X")
+#' trace_reorder("tr(A%*%(X*B*C))","X")
+#' 
+#' trace_reorder("X*B*C", "X")
+#' trace_reorder("X%.%B*C", "X")
+#' trace_reorder("A%*%(t(X*B)*C)","X")
+#' trace_reorder("A%*%(t(t(X*B)*C))","X")
+#' 
+#' trace_reorder("t(X)*B*C", "X", op = "*", attr = TRUE)
 #'
 #' @export
 #'
@@ -881,6 +890,8 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*", "%.%"), attr = FALS
       
       # is target transpose 
       # if(deparse(target)  %in% paste0("t(", X_, ")")){
+      # targetだけ、必要に応じて先に転置してしまう。
+      # t(A) %*% t(X) -> t(A) %*% X (neq; transposed = TRUE, temporary) 
       if(deparse(target) == paste0("t(", X_, ")")){
         target <- transpose_expr(target)
         transposed = TRUE
@@ -890,15 +901,17 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*", "%.%"), attr = FALS
         target <- target_temp$expr
         transposed <- target_temp$transposed
         # reorder target factor %.% 
-        # target_temp <- trace_reorder(target, X_, op = "%.%", attr = TRUE)
-        # target <- target_temp$expr
-        # transposed <- xor(target_temp$transposed, transposed)
+        target_temp <- trace_reorder(target, X_, op = "%.%", attr = TRUE)
+        target <- target_temp$expr
+        transposed <- target_temp$transposed | transposed
         
         temp_current[[X_index]] <- target
       }
       
       
       # process transpose
+      # t(A) %*% t(X) -> t(X %*% A) 
+      # 順番とtarget以外のtransposeを実行。
       if(transposed){
         # symbols_current_temp <- gsub("t\\(t\\((.+)\\)\\)", "\\1",paste0("t(", symbols_current, ")"))
         # symbols_current_temp[[X_index]] <- deparse(target)

@@ -265,7 +265,7 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
         most_right_temp <- drop_parens(most_right)
         if(is.call(most_right_temp))
         if(length(most_right_temp)>2){
-          if(most_right_temp[[1]] == "*" &  most_right_temp[[3]]==X_){
+          if((as.character(most_right_temp[[1]]) %in% c("*", "%.%")) &  most_right_temp[[3]]==X_){
             hp = 1
           }
         }
@@ -313,7 +313,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
               # if( debug ) printm(mR,oL, AA)
               # if( oL == "I" ) res=paste0("diag(",AA,")")
               # else res=paste0(AA,"*t(",oL,")")
-              res = paste0(AA, "*t(", oL, ")")
+              hp_op <- as.character(most_right[[1]])
+              res = paste0(AA, hp_op, "t(", oL, ")")
             }
             return(res)
           }
