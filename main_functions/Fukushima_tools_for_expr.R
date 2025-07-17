@@ -276,11 +276,11 @@ transpose_expr <- function(expr){
 #' expr[[2]] <- easy_parse("X%*%B"); show_ast(expr)
 #' expr[[2]] <- easy_parse("(X%*%B)"); show_ast(expr)
 #' 
-#' つまり
-#' 1. 構文木に代入する場合は、
-#'   1.1. 左から順にの計算順序から変わる場合は、見た目上の()がつく。そうでない場合は()なし。
-#'   1.2. ()を明示的に入れた場合はちゃんと実際の構文木上も現れる。
-#' 2. 必要不要問わず、"()"つきをパースすると、必ず()が構文木に現れる。
+#' #つまり
+#' #1. 構文木に代入する場合は、
+#' #   1.1. 左から順にの計算順序から変わる場合は、見た目上の()がつく。そうでない場合は()なし。
+#' #  1.2. ()を明示的に入れた場合はちゃんと実際の構文木上も現れる。
+#' #2. 必要不要問わず、"()"つきをパースすると、必ず()が構文木に現れる。
 #' 
 #' expr <- easy_parse("A*C") ; expr %>% show_ast
 #' expr[[2]] <- easy_parse("X%*%B"); show_ast(expr)
@@ -301,7 +301,7 @@ transpose_expr <- function(expr){
 #' expr <- easy_parse("(X*A)%*%C") ; expr %>% show_ast
 #' expr <- easy_parse("C%*%(X*A)") ; expr %>% show_ast 
 #' 
-#' ということは、構文木上では一度かっこをほぼすべて外しても問題ない。（はず）
+#' # ということは、構文木上では一度かっこをほぼすべて外しても問題ない。（はず）
 #' 
 #' 
 #' 
@@ -453,6 +453,7 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
 #' reduce_expr_sign("-A+-B")
 #' reduce_expr_sign("-A++B")
 #' 
+#' @export
 #' 
 
 reduce_expr_sign <- function(expr){

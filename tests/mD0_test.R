@@ -178,10 +178,10 @@ if(0){
     unary_reorder_expr("inv(t(-(B)) - A)", "-") # good 
     cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # g
   
-  
+    
 }
 
-assign_at_expr(expr, numeric(0))
+# assign_at_expr(expr, numeric(0))
 
 # core のみで成立
 
@@ -649,7 +649,18 @@ test_that(" check placeholder  ", {
   # gsubはgsub_exprに置き換えて
   # gsub(pattern, replacement, x)
   # gsub_expr(expr = x, object = pattern, replacement)
-  })
+})
+
+
+test_that(" 前川先生からの0717", {
+  
+  c(
+    "tr(A%*%(I*t(X)%*%X))",
+    "tr(A%*%(I%.%t(X)%*%X))",
+    "tr(A)")%>%
+    check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+  
+})
 
 
   

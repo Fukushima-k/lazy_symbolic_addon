@@ -28,11 +28,11 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
   # the recursive depth
   depth=sys.nframe()
   # printm(depth)
-  # if( depth > 1000 ){
-  #   cat("\nerror1:(mD0) Too many recursive calls: Job Abandoned.\n\n")
-  #   printm(expr)
-  #   stop()
-  # }
+  if( depth > 1000 ){
+    cat("\nerror1:(mD0) Too many recursive calls: Job Abandoned.\n\n")
+    printm(expr)
+    stop()
+  }
   
   # shortcut for trace_chain
   .tc=trace_chain
@@ -329,8 +329,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
             if  (trace_chain) cat("P2: using product rule...\n")
             
             
-            depth=sys.nframe()
-            # depth = ""
+            # depth=sys.nframe()
+            depth = ""
             GXplaceholder <- glue::glue("G_X{depth}")
             FXplaceholder <- glue::glue("F_X{depth}")
             
@@ -381,8 +381,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           
           if (debug) printm(FX)
           
-          depth=sys.nframe()
-          # depth = ""
+          # depth=sys.nframe()
+          depth = ""
           mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
           FXplaceholder <- glue::glue("FX{depth}")
           
