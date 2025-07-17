@@ -3,14 +3,16 @@ criteria = 0.01
 
 library(lazy.symbolic)
 library(tidyr)
+modify_math_operators()
 
 if(0){
-  testthat::test_file("tests/mD0_test.R")
-  modify_math_operators()
   
   source("main_functions/Fukushima_MatDeriv.R")
   source("main_functions/Fukushima_main_functions.R")
   source("main_functions/Fukushima_tools_for_expr.R")
+  
+  testthat::test_file("tests/mD0_test.R")
+  
   
   # mD0("tr((inv(X)*t(X))%*%A)","X") の前に、まずmD0("tr((inv(X)*X)%*%A)","X")を見ます。
   # mD0("tr((inv(X)*X)%*%A)","X")は内部的に、mD0("tr(A%*%(FX))", "FX")を計算しているわけですが、
@@ -521,7 +523,7 @@ c(
   "tr(A%*%t(inv(X)))",
   "tr(inv(B%*%X%*%C)%*%A)",
   "tr(A%*%inv(t(X)%*%B%*%X)%*%C)",
-  "tr((inv(X)*t(X))%*%A)",
+  # "tr((inv(X)*t(X))%*%A)",
 
   "tr(A%*%X)"
 ) %>%
@@ -582,5 +584,47 @@ c(
   "tr(A%*%X)"
 ) %>%
   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+
+
+
+# chain ruleのplaceholderについて
+# P2の場合のplaceholderをFXに設定すると、下の処理はうまくいかない。
+# おそらくC1のplaceholderと干渉している。
+expect_equal(
+  mD0_parsed("tr((inv(X)*t(X))%*%A)") ,
+  easy_parse("t(inv(X)) * t(t(A)) - t(inv(X) %*% t(t(X) * t(A)) %*% inv(X))"))
+# if FX, then "t(inv(X)) * t(t(A)) - t(inv(X) %*% t(inv(X) * t(A)) %*% inv(X))"
+
+"tr((inv(X)*t(X))%*%A)" %>%
+  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+
+
+# P2二回使う場合などもうまくいかなくなりそうなので、再帰の深さもplaceholder名に加えた。
+# 以下の関数は、depth = ""にすると、代入が完成せずうまくいかなくなる。
+# 条件文は、mD0内の修正をした箇所。
+if(0){
+  # depth=sys.nframe() # こちらならOK
+  depth = ""　 # こちら（つまり従来通り）だとだめ
+  mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
+  FXplaceholder <- glue::glue("FX{depth}")
+}
+mD0_parsed("tr(X%*%t(X%*%t(X%*%C%*%t(X))))")
+
+# eval(parse(text="tr(X%*%t(X%*%t(X%*%C%*%t(X)*A)))"))
+
+# "tr(X%*%t(X%*%t(X%*%C%*%t(X)*A)))" %>%
+# "tr(t(X%*%t(X%*%C%*%t(X)*A)))" %>%
+# "tr(t(t(X%*%C%*%t(X)*A)))" %>%
+# "tr(t(X%*%C%*%t(X)*A))" %>%
+# # "tr(t(X%*%t(X)))" %>%
+# # "tr(t(X%*%C%*%t(X)))" %>%
+# # "tr(t(t(X%*%C%*%t(X))))" %>%
+# # "tr(t(X%*%t(X%*%C%*%t(X))))" %>%
+# # "tr(X%*%t(X%*%t(X%*%C%*%t(X))))" %>%
+#   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+# 
+# 
+# "tr(t(X%*%C%*%t(X)*A))" %>% mD0
+
 
 

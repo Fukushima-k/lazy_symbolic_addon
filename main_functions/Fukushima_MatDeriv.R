@@ -324,6 +324,12 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           if(N>2 & !FreeQ(most_right[[2]], X_) & most_right[[1]]=="*"){
             if  (trace_chain) cat("P2: using product rule...\n")
             
+            
+            depth=sys.nframe()
+            # depth = ""
+            GXplaceholder <- glue::glue("G_X{depth}")
+            FXplaceholder <- glue::glue("F_X{depth}")
+            
             # expr1 = safe_deparse(expr)
             if( debug ) printm(expr1)
             if (debug) printm(oL, mR)
@@ -332,8 +338,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
             FX = safe_deparse(most_right[[2]])
             GX = safe_deparse(most_right[[3]])
             
-            term1 <- gsub_expr(expr, GX, "G_X")
-            term2 <- gsub_expr(expr, FX, "F_X")
+            term1 <- gsub_expr(expr, GX, GXplaceholder)
+            term2 <- gsub_expr(expr, FX, FXplaceholder)
             
             if(debug){
               printm(expr, term1, term2)
@@ -344,8 +350,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
             
             res_temp <- parse(text = glue::glue("{dterm1}+{dterm2}"))[[1]]
             res_temp
-            res_temp <- gsub_expr(res_temp, "F_X", FX)
-            res_temp <- gsub_expr(res_temp, "G_X", GX)
+            res_temp <- gsub_expr(res_temp, GXplaceholder, GX)
+            res_temp <- gsub_expr(res_temp, FXplaceholder, FX)
             
             res <- reduce_expr_sign(res_temp)
             return(safe_deparse(res))
@@ -373,7 +379,12 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           
           if (debug) printm(FX)
           
-          fFX <- gsub_expr(expr, FX, replacement = "FX")
+          depth=sys.nframe()
+          # depth = ""
+          mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
+          FXplaceholder <- glue::glue("FX{depth}")
+          
+          fFX <- gsub_expr(expr, FX, replacement = FXplaceholder)
 
           if (debug) {
             fFX_str <- safe_deparse(fFX)
@@ -384,29 +395,29 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           } 
           
           # mD0(f(FX), X)
-          res1 = mD0(fFX, "FX", trace_chain=.tc)
-          if (debug) printm(res1)
+          mD_fFX = mD0(fFX, FXplaceholder, trace_chain=.tc)
+          if (debug) printm(mD_fFX)
           
-          res1FX = easy_parse("tr(t(RES1)%*%FX)")
-          res1FX = gsub_expr(res1FX, "FX", FX)
+          res1FX = easy_parse(paste0("tr(t(", mD_fFXplaceholder, ")%*%", FXplaceholder, ")"))
+          res1FX = gsub_expr(res1FX, FXplaceholder, FX)
           
           if (debug) printm(safe_deparse(res1FX))
           
-          res = mD0(res1FX, X_, trace_chain=.tc)
+          res_temp = mD0(res1FX, X_, trace_chain=.tc)
+          
+          if (debug) printm(res_temp)
+          
+          
+          res = gsub(mD_fFXplaceholder, mD_fFX, res_temp, fixed = TRUE)
+          res = gsub(FXplaceholder, FX, res, fixed = TRUE)
+          res = gsub(" ", "", res)
           
           if (debug) printm(res)
           
           
-          res1 = gsub("RES1", res1, res, fixed = TRUE)
-          res1 = gsub("FX", FX, res1, fixed = TRUE)
-          res1 = gsub(" ", "", res1)
+          res <- safe_deparse(cancel_double_expr(res))
           
-          if (debug) printm(res1)
-          
-          
-          res1 <- safe_deparse(cancel_double_expr(res1))
-          
-          return(res1)
+          return(res)
           
           # 
           # #     cat("\n*** chain rule not yet available.***\n")
