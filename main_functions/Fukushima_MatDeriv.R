@@ -225,19 +225,19 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       
       # change tr(A*B) or tr((A*B)) to tr(I%*%(A*B))
       hp = 0
-      if(0){
-        exprstr = safe_deparse(expr)
-        exprstr = gsub(" ", "", exprstr)
-        if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
-          if( debug ) printm("input:", exprstr)
-          exprstr = gsub("^tr\\(\\(*(\\w+\\*\\w+)\\)*\\)$"
-                         , "tr\\(I%*%\\(\\1\\)\\)", exprstr)
-          #exprstr=gsub("))",")",exprstr, fixed=TRUE)
-          if( debug ) printm("after:", exprstr)
-          hp = 1
-          expr = parse(text = exprstr)[[1]]
-        } 
-      } # 代わりに下の部分で評価
+      # if(0){
+      #   exprstr = safe_deparse(expr)
+      #   exprstr = gsub(" ", "", exprstr)
+      #   if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
+      #     if( debug ) printm("input:", exprstr)
+      #     exprstr = gsub("^tr\\(\\(*(\\w+\\*\\w+)\\)*\\)$"
+      #                    , "tr\\(I%*%\\(\\1\\)\\)", exprstr)
+      #     #exprstr=gsub("))",")",exprstr, fixed=TRUE)
+      #     if( debug ) printm("after:", exprstr)
+      #     hp = 1
+      #     expr = parse(text = exprstr)[[1]]
+      #   } 
+      # } # 代わりに下の部分で評価
       
       ################################################################
       ################################################################
@@ -245,38 +245,43 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       if (as.character(expr[[2]][[1]]) == "%*%") {
         # トレース内最も右のファクター
         most_right <- expr[[2]][[3]]
-        ###########################################
-        # remove ()          ######################
-        ###########################################
+        # remove ()
         most_right <- drop_parens(most_right)
-        
         mR = safe_deparse(most_right)
-        if (debug) printm(mR, X_, mR == X_, hp)
-        
         # それ以外の左のファクター
         other_left <- expr[[2]][[2]]
         oL = safe_deparse(other_left)
         oL = gsub(" ", "", oL)
+
+        # define inv(X_)        
         invs <- paste0(c("inv", "Inv", "ginv", "Ginv"), 
                        "(", X_, ")")
-        if (debug) printm(invs, mR %in% invs)
-
+        
         # Hadamar の特定公式フラグ        
-        most_right_temp <- drop_parens(most_right)
-        if(is.call(most_right_temp))
-        if(length(most_right_temp)>2){
-          if((as.character(most_right_temp[[1]]) %in% c("*", "%.%")) &  most_right_temp[[3]]==X_){
-            hp = 1
-          }
+
+        if(is.call(most_right))
+        if(length(most_right)>2)
+        if((as.character(most_right[[1]]) %in% c("*", "%.%")) &  most_right[[3]]==X_){
+          hp = 1
         }
         
-        # 2 cases exist. 
+        
+        
+        if (debug) {
+          # 特定公式利用可能チェック
+          printm(mR, X_, mR == X_, hp)
+          printm(invs, mR %in% invs)
+        }
+
+        
+        
+        # 2 cases to be checked exist. 
         # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
         # 2. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) ->FALSE
         
-        # FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
+        # 3. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) -> TRUE
         # 全体に含まれていないことはif(FreeQ(expr, X_))で確認済みなので不要
-        # FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) -> TRUE
+        # 4. FreeQ(oL, X_) ->FALSE; FreeQ(mR, X_) -> TRUE
         # trace_reorderが正しく機能している限り、X_が含まれているなら必ずmR存在。
         
         # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
@@ -319,7 +324,6 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
             return(res)
           }
           
-          expr1 = safe_deparse(expr)
           N <- length(most_right)
           if(N>2 & !FreeQ(most_right[[2]], X_) & most_right[[1]]=="*"){
             if  (trace_chain) cat("P2: using product rule...\n")
@@ -330,8 +334,7 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
             GXplaceholder <- glue::glue("G_X{depth}")
             FXplaceholder <- glue::glue("F_X{depth}")
             
-            # expr1 = safe_deparse(expr)
-            if( debug ) printm(expr1)
+            if( debug ) printm(safe_deparse(expr))
             if (debug) printm(oL, mR)
             if (debug) show_ast(most_right)
             
@@ -348,8 +351,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
             dterm1 <- mD0(term1, X_, trace_chain=.tc)
             dterm2 <- mD0(term2, X_, trace_chain=.tc)
             
-            res_temp <- parse(text = glue::glue("{dterm1}+{dterm2}"))[[1]]
-            res_temp
+            res_temp <-call("+", easy_parse(dterm1), easy_parse(dterm2) )
+            
             res_temp <- gsub_expr(res_temp, GXplaceholder, GX)
             res_temp <- gsub_expr(res_temp, FXplaceholder, FX)
             
@@ -361,8 +364,7 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
           if (trace_chain) cat("C1: using chain rule...\n")
 
-          expr1 = safe_deparse(expr)
-          if( debug ) printm(expr1)
+          if( debug ) printm(safe_deparse(expr))
           if (debug) printm(oL, mR)
           if (debug) show_ast(most_right)
 
@@ -408,11 +410,6 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           if (debug) printm(res_temp)
           res <- gsub_expr(res_temp, mD_fFXplaceholder, mD_fFX)
           res <- gsub_expr(res, FXplaceholder, FX)
-          # gsub(pattern, replacement, x)
-          # gsub_expr(expr = x, object = pattern, replacement)
-          # 
-          # # res = gsub(mD_fFXplaceholder, mD_fFX, res_temp, fixed = TRUE)
-          # res = gsub(FXplaceholder, FX, res, fixed = TRUE)
           res = safe_deparse(res)
           
           if (debug) printm(res)
@@ -444,9 +441,6 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           if (trace_chain) cat("P1: using product rule.....\n")
           if (debug) cat("mD0(tr(oL %*% mR)) = mD0(tr(oL %*% mRc)) + mD0(tr(oLc %*% mR))\n")
           if (debug) printm(mR, oL)
-          # first_term <- second_term <- call("mD0", expr, as.symbol(X_))
-          # first_term[[2]][[2]][[3]] <- as.symbol("mRc")
-          # second_term[[2]][[2]][[2]] <- as.symbol("oLc")
           first_term <- second_term <- expr
           first_term[[2]][[3]] <- as.symbol("mRc")
           second_term[[2]][[2]] <- as.symbol("oLc")
@@ -460,20 +454,15 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           
           res1 = mD0(safe_deparse(first_term), X_, trace_chain=.tc)
           res11 = gsub_expr(res1, "mRc", mR)
-          # res11 = gsub("mRc", mR, res1, fixed = TRUE)
-          # res11 = gsub(" ", "", res11)
           
           if (debug) printm(res1, res11)
           if (debug) cat("*** processing the 2nd term* ***\n")
           
           res2 =  mD0(safe_deparse(second_term), X_, trace_chain=.tc)
           res22 = gsub_expr(res2, "oLc", oL)
-          # res22 = gsub("oLc", oL, res2)
-          # res22 = gsub(" ", "", res22)
           
           if (debug) printm(res2, res22)
           
-          # res = paste0(res11, "+", res22)
           res = call("+", res11, res22)
           # res = gsub("+-", "-", res, fixed = TRUE)
           res = reduce_expr_sign(res)
