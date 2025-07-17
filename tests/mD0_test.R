@@ -560,71 +560,92 @@ trace_reorder("tr(C %*% (C*(B * t(X))))", "X")
 
 # トレース内 * %.%の確認中
 # comparison: version *, version %.%, and reorderd version
-c("tr(C %*% (C*(B %.% t(X))))",
-  "tr(C %*% (C*(B * t(X))))",
-  "tr(t(C) %*% (t(C) * (t(B) %.% X)))" #trace_reorder("tr(C %*% (C*(B %.% t(X))))", "X")
+test_that(" check %.%  ", {
+  
+  c("tr(C %*% (C*(B %.% t(X))))",
+    "tr(C %*% (C*(B * t(X))))",
+    "tr(t(C) %*% (t(C) * (t(B) %.% X)))" #trace_reorder("tr(C %*% (C*(B %.% t(X))))", "X")
   ) %>% 
-  lapply(function(x)eval(parse(text = x)))
+    lapply(function(x)eval(parse(text = x)))
+  
+  
+  # mD0("tr(A%*%(B%.%X))")
+  # mD0("(t(C) * (t(B) %.% X))")
+  
+  c(
+    "tr(A%*%(t(t(X*B)*C)))",
+    "tr(A%*%(B%.%X))",
+    "tr(C %*% (C * B %.% t(X)))",
+    # 
+    "tr(t(C) * (t(B) %.% X))",
+    "tr(C %*% (B * t(X)))",
+    "tr(C %*% (B %.% t(X)))",
+    "tr(C %*% (C * B %.% t(X)))",
+    "tr(C %*% (C %.% B * t(X)))",
+    "tr(C %*% (C*(B * t(X))))",
+    "tr(A%*%X)"
+  ) %>%
+    check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+  })
+
+test_that(" check placeholder  ", {
+  
+  
+  # chain ruleのplaceholderについて
+  # P2の場合のplaceholderをFXに設定すると、下の処理はうまくいかない。
+  # おそらくC1のplaceholderと干渉している。
+  expect_equal(
+    mD0_parsed("tr((inv(X)*t(X))%*%A)") ,
+    easy_parse("t(inv(X)) * t(t(A)) - t(inv(X) %*% t(t(X) * t(A)) %*% inv(X))"))
+  # if FX, then "t(inv(X)) * t(t(A)) - t(inv(X) %*% t(inv(X) * t(A)) %*% inv(X))"
+  
+  "tr((inv(X)*t(X))%*%A)" %>%
+    check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+  
+  
+  # P2二回使う場合などもうまくいかなくなりそうなので、再帰の深さもplaceholder名に加えた。
+  # 以下の関数は、depth = ""にすると、代入が完成せずうまくいかなくなる。
+  # 条件文は、mD0内の修正をした箇所。
+  if(0){
+    # depth=sys.nframe() # こちらならOK
+    depth = ""　 # こちら（つまり従来通り）だとだめ
+    mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
+    FXplaceholder <- glue::glue("FX{depth}")
+  }
+  expect_equal(mD0_parsed("tr(X%*%t(X%*%t(X%*%C%*%t(X))))"), 
+               easy_parse("t(t(C) %*% t(X) %*% t(t(X) %*% X)) + t(C %*% t(X) %*% (t(X) %*% 
+    X)) + t(t(X %*% C %*% t(X)) %*% t(X)) + t(t(X %*% t(X %*% 
+    C %*% t(X))))"))
+  
+  
+  # eval(parse(text="tr(X%*%t(X%*%t(X%*%C%*%t(X)*A)))"))
+  
+  
+  "tr(t(X%*%C%*%t(X)*A))" %>% mD0
+  
+  # 内側で使われている、微分の確認。
+  c(
+    "tr(X%*%t(X%*%t(X%*%C%*%t(X)*A)))", 
+    "tr(C%*% t(X) %*% t(A) %*% X)",
+    "tr(t(C) %*% (A*X))",
+    "tr(t(C) %*% (A*X%*%C%*%t(X)))", # これが原因で、gsubを用いていたのが原因だった。
+    "tr(A)"
+  ) %>%
+    # "tr(t(C) %*% (A*X%*%C%*%t(X)))" %>%  # これが原因
+    check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
+  # "tr(C%*% t(X) %*% t(A) %*% X)" %>% 
+  c(
+    "tr(C%*% t(X) %*% t(A) %*% X)",
+    "tr(t(C) %*% (A*X))",
+    "tr(t(C) %*% (A*X%*%C%*%t(X)))", # これが原因で、gsubを用いていたのが原因だった。
+    "tr(A)"
+  ) %>%  sapply(mD0) # "t(C%*%t(X)%*%t(A))+t(t(C)%*%t(X)%*%A)"
+  
+  # gsubはgsub_exprに置き換えて
+  # gsub(pattern, replacement, x)
+  # gsub_expr(expr = x, object = pattern, replacement)
+  })
 
 
-# mD0("tr(A%*%(B%.%X))")
-# mD0("(t(C) * (t(B) %.% X))")
-
-c(
-  "tr(A%*%(t(t(X*B)*C)))",
-  "tr(A%*%(B%.%X))",
-  "tr(C %*% (C * B %.% t(X)))",
-  # 
-  "tr(t(C) * (t(B) %.% X))",
-  "tr(C %*% (B * t(X)))",
-  "tr(C %*% (B %.% t(X)))",
-  "tr(C %*% (C * B %.% t(X)))",
-  "tr(C %*% (C %.% B * t(X)))",
-  "tr(C %*% (C*(B * t(X))))",
-  "tr(A%*%X)"
-) %>%
-  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
-
-
-
-# chain ruleのplaceholderについて
-# P2の場合のplaceholderをFXに設定すると、下の処理はうまくいかない。
-# おそらくC1のplaceholderと干渉している。
-expect_equal(
-  mD0_parsed("tr((inv(X)*t(X))%*%A)") ,
-  easy_parse("t(inv(X)) * t(t(A)) - t(inv(X) %*% t(t(X) * t(A)) %*% inv(X))"))
-# if FX, then "t(inv(X)) * t(t(A)) - t(inv(X) %*% t(inv(X) * t(A)) %*% inv(X))"
-
-"tr((inv(X)*t(X))%*%A)" %>%
-  check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
-
-
-# P2二回使う場合などもうまくいかなくなりそうなので、再帰の深さもplaceholder名に加えた。
-# 以下の関数は、depth = ""にすると、代入が完成せずうまくいかなくなる。
-# 条件文は、mD0内の修正をした箇所。
-if(0){
-  # depth=sys.nframe() # こちらならOK
-  depth = ""　 # こちら（つまり従来通り）だとだめ
-  mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
-  FXplaceholder <- glue::glue("FX{depth}")
-}
-mD0_parsed("tr(X%*%t(X%*%t(X%*%C%*%t(X))))")
-
-# eval(parse(text="tr(X%*%t(X%*%t(X%*%C%*%t(X)*A)))"))
-
-# "tr(X%*%t(X%*%t(X%*%C%*%t(X)*A)))" %>%
-# "tr(t(X%*%t(X%*%C%*%t(X)*A)))" %>%
-# "tr(t(t(X%*%C%*%t(X)*A)))" %>%
-# "tr(t(X%*%C%*%t(X)*A))" %>%
-# # "tr(t(X%*%t(X)))" %>%
-# # "tr(t(X%*%C%*%t(X)))" %>%
-# # "tr(t(t(X%*%C%*%t(X))))" %>%
-# # "tr(t(X%*%t(X%*%C%*%t(X))))" %>%
-# # "tr(X%*%t(X%*%t(X%*%C%*%t(X))))" %>%
-#   check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
-# 
-# 
-# "tr(t(X%*%C%*%t(X)*A))" %>% mD0
-
-
-
+  
+  

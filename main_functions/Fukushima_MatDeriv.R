@@ -406,11 +406,14 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           res_temp = mD0(res1FX, X_, trace_chain=.tc)
           
           if (debug) printm(res_temp)
-          
-          
-          res = gsub(mD_fFXplaceholder, mD_fFX, res_temp, fixed = TRUE)
-          res = gsub(FXplaceholder, FX, res, fixed = TRUE)
-          res = gsub(" ", "", res)
+          res <- gsub_expr(res_temp, mD_fFXplaceholder, mD_fFX)
+          res <- gsub_expr(res, FXplaceholder, FX)
+          # gsub(pattern, replacement, x)
+          # gsub_expr(expr = x, object = pattern, replacement)
+          # 
+          # # res = gsub(mD_fFXplaceholder, mD_fFX, res_temp, fixed = TRUE)
+          # res = gsub(FXplaceholder, FX, res, fixed = TRUE)
+          res = safe_deparse(res)
           
           if (debug) printm(res)
           
