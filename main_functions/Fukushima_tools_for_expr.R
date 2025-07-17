@@ -127,7 +127,7 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
             }else{
               ops[[i]] <- list(additional_op, ops[[i]])
             }
-            ops <- ops %>% unlist()
+            ops <- unlist(ops)
           }
         else if(as.character(temp_current[[i]][[2]][[1]]) == "("){
             continue <- TRUE
@@ -370,6 +370,8 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
 #' unary_reorder_expr("t(-(t(-(inv(A)))))", "inv", exchangable_ops = c("-", "(", "inv"))
 #' 
 #' unary_reorder_expr("t(inv(A))", "t")
+#' unary_reorder_expr("inv(t(-(B)) - A)", "-")
+#'  
 #' @export
 #' 
 
@@ -387,10 +389,15 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
   info_unary_list <- grep_expr(expr, most_out)
   
   if(length(info_unary_list)==0) return(expr) 
-    
-  info_unary <- info_unary_list[[1]]
-  if(is.null(info_unary$parent)) return(expr)
   
+  # choose the first unary op. 
+  length_expr <-sapply(info_unary_list, function(x){
+    length(x$parent)
+  })
+  
+  info_unary <- info_unary_list[[match(2, length_expr)]]
+  if(is.null(info_unary$parent)) return(expr)
+    
   paths_to_mostout <- info_unary$path
   
   maxdepth <- length(paths_to_mostout)
@@ -399,19 +406,20 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
     temp_path <- paths_to_mostout
     temp_path <- temp_path[1:depth]
     temp_path[depth] <- 1
-    deparse(assign_at_expr(expr, temp_path))
+    c(deparse(assign_at_expr(expr, temp_path)), length(assign_at_expr(expr, temp_path[-depth])))
   })
   
+  # exchange
   continue <- TRUE
   for(depth in (maxdepth-1):0){
     if(continue){
       if(depth==0){
         expr[[1]] <- as.symbol(most_out)
       }else
-      if(as.character(ops_to_mostout[depth]) %in% exchangable_ops){
+      if((as.character(ops_to_mostout[1, depth]) %in% exchangable_ops) & ops_to_mostout[2, depth] !=3){
         temp_path <- paths_to_mostout
         temp_path <- c(temp_path[1:depth], 1)
-        expr <- assign_at_expr(expr, temp_path, as.symbol(ops_to_mostout[depth]))
+        expr <- assign_at_expr(expr, temp_path, as.symbol(ops_to_mostout[1, depth]))
         
         if(depth == 1){
         }
@@ -529,6 +537,9 @@ reduce_expr_I <- function(expr){
 #' cancel_double_expr("-inv(t(-(B)))", use_unary_reorder=TRUE)
 #' 
 #' cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # これ期待通りの挙動ではないので要修正
+#' # →　修正完了
+#' 
+#' 
 #' 
 #' @export
 #' 
@@ -554,6 +565,9 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
   if(!missing(inv)) inv_mats <- c(inv_mats, inv)
   
   info_double_list <- grep_expr(expr, double_op)
+  length_expr <- lapply(info_double_list, function(x)length(x$parent))
+  info_double_list <- info_double_list[length_expr==2]
+  
   # info_double_list <- grep_expr(expr, "t")
   if(length(info_double_list)==0) return(expr) 
   for(i in seq_along(info_double_list)){
@@ -575,7 +589,7 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
         # expr <- reduce_expr_I(expr)
       }
       if(use_unary_reorder){
-        temp_expr <- info_double$parent[[2]] %>% unary_reorder_expr(target_op)
+        temp_expr <- unary_reorder_expr(info_double$parent[[2]], target_op)
         if(as.character(temp_expr[[1]])==target_op){
           
           depth <- length(info_double$path)
@@ -631,18 +645,6 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
 
 grep_expr <- function(expr, varname) {
   
-  # for(expr_name in c("expr", "varname")){
-  #   expr_temp <- eval(parse(text=expr_name))
-  #   if (is.character(expr_temp)){
-  #     assign(expr_name, 
-  #            tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
-  #              warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
-  #              return(NULL)
-  #            })
-  #     )
-  #   }
-  # }
-  # 
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
@@ -715,7 +717,10 @@ assign_at_expr <- function(expr, path, value) {
     }
   }
   
-  if (length(path) == 0) return(value)  # expr 全体を置き換える場合
+  if (length(path) == 0 | is.null(path)){
+    if(is.null(value)) return(expr)
+    return(value)  # expr 全体を置き換える場合
+  } 
   
   # 再帰的に代入を適用する内部関数
   recursive_set <- function(e, p) {

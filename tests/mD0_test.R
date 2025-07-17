@@ -170,13 +170,18 @@ if(0){
     
     
   # cancel_double_expr(t(t(A)%*%t(B))) -> B%*%Aにできるように。
-  # cancel_double_expr(t(-t(A))) -> -Aにできるように。
+  # cancel_double_expr(t(-t(A))) -> -Aにできるように。# できるようになりました。
+    cancel_double_expr("t(-t(A))", use_unary_reorder = TRUE)
     
   # cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # これ期待通りの挙動ではないので要修正
+    # 修正完了
+    unary_reorder_expr("inv(t(-(B)) - A)", "-") # good 
+    cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # g
   
   
 }
 
+assign_at_expr(expr, numeric(0))
 
 # core のみで成立
 
