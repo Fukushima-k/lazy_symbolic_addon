@@ -59,6 +59,22 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
     expr <- expr_out
   }
   
+  expr_out <- diag_to_hp(expr)
+  if(expr != expr_out){
+    
+    if (trace_chain) cat("diag() to I*: \n")
+    if(debug) cat(paste0(safe_deparse(expr), " -> ", safe_deparse(expr_out), "\n"))
+    expr <- expr_out
+  }
+  
+  expr_out <- linear_expand_expr(expr, "tr", "t", "%*%", "*")
+  if(expr != expr_out){
+    
+    if (trace_chain) cat("linear_expand: \n")
+    if(debug) cat(paste0(safe_deparse(expr), " -> ", safe_deparse(expr_out), "\n"))
+    expr <- expr_out
+  }
+  
   
   if (is.call(expr)) {
     # S1

@@ -357,6 +357,8 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
 
 #' reorder unary oparators
 #' 
+#' @note 再帰解決系
+#' 
 #' @examples
 #' unary_reorder_expr("(t(inv(A)))", "inv")
 #' unary_reorder_expr("(t(-(inv(A))))", "inv")
@@ -519,6 +521,8 @@ reduce_expr_I <- function(expr){
 
 
 #' t(t(A)) -> A in expr
+#'
+#' #' @note 再帰解決系
 #'
 #' @examples
 #' example code
@@ -952,4 +956,200 @@ trace_reorder <- function(expr, X_, op=c("both", "%*%", "*", "%.%"), attr = FALS
     return(expr)
   }
 } # end of general_reorder
+
+
+#' 
+#' 
+#' 
+#' @examples
+#' # example code
+#' diag_to_hp("tr(A%*%Diag(t(X)%*%X))")
+#' diag_to_hp("tr(A%*%Diag(t(X)+X))")
+#' diag_to_hp("tr(A%*%(t(X)%*%X))")
+#' 
+#' diag_to_hp("tr(Diag(A)%*%diag(t(X)%*%Diag(X + diag(B))))")
+#' 
+#' @export
+#' 
+
+diag_to_hp <- function(expr){
+  
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  info_diag_list <- grep_expr(expr, c("diag", "Diag"))
+  
+  
+  if(length(info_diag_list)==0) return(expr) 
+  
+  
+  for(i in seq_along(info_diag_list)){
+    
+    info_diag <- info_diag_list[[i]]
+    if(is.null(info_diag$parent)) return(expr)
+    
+    path <- info_diag$path[-length(info_diag$path)]
+    replacement <- call("*", 
+                        info_diag$parent[[2]],
+                        as.symbol("I"))
+    expr <- assign_at_expr(expr, path, replacement) 
+  }
+  
+  return(expr)
+}# end of diag_to_hp()
+
+#' 
+#' 
+#' 
+#' @examples
+#' # example code
+#' make_minus_sign("A-B")
+#' make_minus_sign("A-(B+C)")
+#' make_minus_sign("A-(B-C)")
+#' make_minus_sign("a+b--e")
+#' 
+#' 
+#' @export
+#' 
+
+make_minus_sign <- function(expr){
+  
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  info_minus_list <- grep_expr(expr, c("-"))
+  
+  
+  if(length(info_minus_list)==0) return(expr) 
+  
+  
+  for(i in seq_along(info_minus_list)){
+    
+    info_minus <- info_minus_list[[i]]
+    if(is.null(info_minus$parent)) return(expr)
+    
+    path <- info_minus$path[-length(info_minus$path)]
+    replacement <- call("+", 
+                        info_minus$parent[[2]],
+                        call("-", info_minus$parent[[3]]))
+    expr <- assign_at_expr(expr, path, replacement) 
+  }
+  
+  return(expr)
+}# end of diag_to_hp()
+
+
+#' linear expand for ast
+#' 
+#' @note 再帰解決系
+#' 
+#' @examples
+#' linear_expand_expr("tr(A-B)", "tr", "inv")
+#' linear_expand_expr("inv(tr(A-B)) %*% C", "tr")
+#' linear_expand_expr("tr(A-B+C)", "tr") 
+#' linear_expand_expr("A-B", "tr") 
+#'  
+#'  
+#' linear_expand_expr("A%*%(X-B)", "%*%") 
+#' linear_expand_expr("tr(A%*%(X-B))", "tr", "%*%", "(")
+#' 
+#' linear_expand_expr("(A-B)*(A-B)", "*")
+#'  
+#'  
+#'  
+#' @export
+#' 
+
+linear_expand_expr <- function(expr, ...){
+  
+  fn_names <- as.character(list(...))
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  most_out <- c("+", "-")
+  exchangable_ops <- fn_names
+  
+  expr <- drop_parens(expr, all = TRUE)
+  info_sum_list <- grep_expr(expr, most_out)
+  
+  if(length(info_sum_list)==0) return(expr) 
+  
+  # choose the first **binary** op. 
+  length_expr <-sapply(info_sum_list, function(x){length(x$parent)})
+  info_sum_list <- info_sum_list[length_expr==3]
+
+  for(i in rev(seq_along(info_sum_list))){
+    info_sum <- info_sum_list[[i]]
+    if(is.null(info_sum$parent)) return(expr)
+    
+    paths_to_mostout <- info_sum$path
+    
+    maxdepth <- length(paths_to_mostout)
+    
+    ops_to_mostout <- sapply(1:maxdepth, function(depth){
+      temp_path <- paths_to_mostout
+      temp_path <- temp_path[1:depth]
+      temp_path[depth] <- 1
+      c(deparse(assign_at_expr(expr, temp_path)), length(assign_at_expr(expr, temp_path[-depth])))
+    })
+    
+    # exchange
+    continue <- TRUE
+    for(depth in (maxdepth-1):1){
+      if(continue){
+        if(depth==0){
+          return(expr) # +- is most out
+        }else
+          if(as.character(ops_to_mostout[1, depth]) %in% exchangable_ops){
+            if(ops_to_mostout[2, depth] !=3){
+              
+              path_to_parent <- paths_to_mostout[1:depth]
+              parent <- assign_at_expr(expr, path_to_parent)
+              
+              path_to_target <- path_to_parent[-length(path_to_parent)]
+              target <- assign_at_expr(expr, path_to_target)
+              
+              parent[[2]] <- assign_at_expr(target, 2, parent[[2]])
+              parent[[3]] <- assign_at_expr(target, 2, parent[[3]])
+              
+              expr <- assign_at_expr(expr, path_to_target, parent)
+              expr <- linear_expand_expr(expr, ...)
+              return(recompose_MatProd(expr, most_out))
+            }else if(ops_to_mostout[2, depth] ==3){
+              
+              path_to_parent <- paths_to_mostout[1:depth]
+              parent <- assign_at_expr(expr, path_to_parent)
+              
+              path_to_target <- path_to_parent[-length(path_to_parent)]
+              target <- assign_at_expr(expr, path_to_target)
+              
+              parent[[2]] <- assign_at_expr(target, path_to_parent[depth], parent[[2]])
+              parent[[3]] <- assign_at_expr(target, path_to_parent[depth], parent[[3]])
+              
+              expr <- assign_at_expr(expr, path_to_target, parent)
+              expr <- linear_expand_expr(expr, ...)
+              return(recompose_MatProd(expr, most_out))
+            }
+          }else{
+            continue <- FALSE
+          }
+      }
+    }
+  }
+  
+  return(recompose_MatProd(expr, most_out))
+  
+}　# end of linear_expand_expr
+
+
+
 
