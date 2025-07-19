@@ -37,16 +37,22 @@ safe_deparse <- function(expr){
 #' # example code
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "%*%")
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
+#'
+#' decompose_MatProd("a+b-c+d+e", c("+"), return_op = TRUE)
 #' decompose_MatProd("a+b-c+d+e", c("-", "+"), return_op = TRUE)
+#'
 #' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), return_op =  TRUE)
-#' decompose_MatProd("a+b--e", c("-", "+"),  return_op =  TRUE)
+#' decompose_MatProd("a+b-(c+d)+e", c("+"), return_op =  TRUE)
+#'
+#' decompose_MatProd("a+b--e", c("+"),  return_op =  TRUE)
 #' decompose_MatProd("a+b-+e", c("-", "+"),  return_op =  TRUE)
-#' decompose_MatProd("+a++b--c+-d-+e", c("-", "+"),  return_op =  TRUE)
+#' decompose_MatProd("+a++b-+-c+-d-+e", c("-", "+"),  return_op =  TRUE)
 #' 
 #' decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
-#' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE) 
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+"), flat = TRUE, return_op = TRUE) 
 #' 
 #' 
 #' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
@@ -56,6 +62,11 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("(A%*%X)%*%B", "%*%", flat = TRUE)
 #' decompose_MatProd("A%*%((X%*%B))", "%*%", flat = TRUE)
 #' decompose_MatProd("A%*%(((((X))%*%B)))", "%*%", flat = TRUE)
+#'
+#'
+#' # flatの修正
+#' decompose_MatProd("X-(A+B)", c("+", "-"), flat = TRUE, return_op=TRUE)
+#' decompose_MatProd("X-(A+B)", c("+"), flat = TRUE, return_op=TRUE)
 #'
 #' @export
 #'
@@ -67,6 +78,20 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
       warning("入力が有効な R 式ではありません")
       return(NULL)
     })
+  
+  
+  if(identical(op, "-") | identical(op, c("-", "+") ) | identical(op, c("-", "+") )){
+    op = "+"
+  }
+  
+  if(flat | !missing(target_X))
+  if(length(op) !=1){
+    stop("もしかしたら分配法則うまくいかないかもしれないので、現versionでは止めます。。")
+  }
+  
+  if(identical(op, "+")){
+    expr <- make_minus_sign(expr)
+  }
   
   ops <- NULL
   temp_past <- list(expr)
@@ -199,6 +224,28 @@ compose_MatProd <- function(terms, op){
   
   return(past_terms[[1]])
 }
+
+
+#' compose MatProd
+#' 
+#' @examples
+#' # example code
+#' 
+#' recompose_MatProd("A +(B-C)", c("+", "-"))
+#' 
+#' recompose_MatProd(" tr(t(Y) %*% Y) - tr(t(Y) %*% X) - (tr(t(X) %*% Y) - tr(t(X) %*%X))", c("-"))
+#' 
+#' @export
+#' 
+
+recompose_MatProd <- function(expr, op){
+  # terms <- decompose_MatProd(expr, op, return_op = TRUE, flat = TRUE)
+  # return(compose_MatProd(terms))
+  return(expr)
+}
+
+
+
 
 
 #' Transpose expr
@@ -1028,6 +1075,9 @@ make_minus_sign <- function(expr){
   
   if(length(info_minus_list)==0) return(expr) 
   
+  # choose the first **binary** op. 
+  length_expr <-sapply(info_minus_list, function(x){length(x$parent)})
+  info_minus_list <- info_minus_list[length_expr==3]
   
   for(i in seq_along(info_minus_list)){
     
@@ -1076,6 +1126,7 @@ linear_expand_expr <- function(expr, ...){
     })
   
   most_out <- c("+", "-")
+  # most_out <- c("+")
   exchangable_ops <- fn_names
   
   expr <- drop_parens(expr, all = TRUE)
