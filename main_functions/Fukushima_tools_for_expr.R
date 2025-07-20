@@ -1,5 +1,7 @@
 
-#' easy_parse
+#' Parsing text w/o writing text= and trailing [[1]]
+#'
+#' @param text a string to be parsed
 #' 
 #' @examples
 #' easy_parse("X")
@@ -16,11 +18,21 @@ easy_parse <- function(text){
 } # end of easy_parse
 
 
-#' safe_deparse
+#' Deparse an expression with maximum width.cutoff
+#'
+#' @param expr and expression to be deparsed
 #' 
-#' @note deparseをただすると、長いexprは文字列ベクトルになってしまうので、
+#' @details deparseをただすると、長いexprは文字列ベクトルになってしまうので、
 #' 
 #' @examples
+#' text=
+#' "Diag(A)%*%B%*%Diag(C)%*%H-Diag(A)%*%B%*%E%*%H+Diag(A)%*%F%*%H+t(A)%*%G%*%H"
+#' expr=parse(text=text)[[1]]
+#' deparse(expr)
+#' safe_deparse(expr)
+#'
+#' @return
+#' a text string
 #' 
 #' @export
 #'  
@@ -31,7 +43,17 @@ safe_deparse <- function(expr){
 
 #' Decompose Matrix Product
 #'
-#' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
+#' Decompose a product of matrices into factors
+#'
+#' @param expr input expression or string
+#' @param op the operator to be used as a delimiter
+#' @param return_op = TRUE if the operator is required to be returned
+#' @param flat ????
+#' @param target_X ????
+#'
+#' @details
+#' Currently, nested expressions may not be handled correctly in some cases,
+#' so caution is advised.
 #'
 #' @examples
 #' # example code
@@ -46,7 +68,8 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
-#' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-")
+#' , flat = TRUE, return_op = TRUE)
 #' 
 #' 
 #' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
@@ -57,10 +80,14 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A%*%((X%*%B))", "%*%", flat = TRUE)
 #' decompose_MatProd("A%*%(((((X))%*%B)))", "%*%", flat = TRUE)
 #'
+#' @return
+#' a list of terms/factors and, if requested, a vector of operators
+#'
 #' @export
 #'
 
-decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_X){
+decompose_MatProd <- function(expr, op
+                              , return_op = FALSE, flat = FALSE, target_X){
   
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
@@ -92,7 +119,7 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
       }
     }
     temp_past <- temp_current
-    # temp_current %>% print()
+    # temp_current |> print()
   }
   ops <- rev(ops)
   
@@ -151,6 +178,9 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
 
 #' compose MatProd
 #' 
+#' @param terms a list of terms
+#' @param op a vector of operators
+#'
 #' @examples
 #' # example code
 #' terms <- decompose_MatProd("A%*%B%*%C%*%D%*%E", "%*%")
@@ -167,6 +197,8 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
 #' compose_MatProd(terms$terms, terms$ops)
 #' compose_MatProd(terms)
 #' 
+#' @return
+#' an expression
 #' 
 #' @export
 #' 
@@ -198,17 +230,27 @@ compose_MatProd <- function(terms, op){
   }
   
   return(past_terms[[1]])
-}
+
+} # end of compose_MatProd
+
 
 
 #' Transpose expr
 #' 
+#' Add or remove nested transpositions
+#'
+#' @param expr an expression
+#'
 #' @examples
-#' library(tidyr)
-#' easy_parse("X") %>%  transpose_expr
-#' easy_parse("t(X)") %>%  transpose_expr
-#' easy_parse("t(t(X)%*%B)") %>%  transpose_expr
-#' easy_parse("(t(t(X)%*%B))") %>%  transpose_expr
+#' # library(tidyr)
+#' easy_parse("X") |>  transpose_expr()
+#' easy_parse("t(X)") |>  transpose_expr()
+#' easy_parse("t(t(X)%*%B)") |>  transpose_expr()
+#' easy_parse("(t(t(X)%*%B))") |>  transpose_expr()
+#' easy_parse("(t(t(X)%*%B))") |> drop_parens()  |>  transpose_expr()
+#'
+#' @return
+#' an expression
 #' 
 #' @export
 #' 
@@ -225,7 +267,11 @@ transpose_expr <- function(expr){
 
 #' drop parens
 #' 
-#' @param all TRUE if all parens should be removed from ast. FALSE if 二項演算子同士の順序関係を明示したい場合。
+#' Remove unnecessary parentheses from an expression#'
+#'
+#' @param expr an expression or a string
+#' @param all = TRUE if all parens should be removed from ast. \cr
+#'  = FALSE if 二項演算子同士の順序関係を明示したい場合。
 #' @param in_biop flag for recursive process. 
 #' 
 #' @examples
@@ -234,81 +280,82 @@ transpose_expr <- function(expr){
 #' drop_parens("(X)")
 #' drop_parens("((X))")
 #' drop_parens("(t((X)))")
-#' drop_parens("(t((tr((X)))))") %>% show_ast()
-#' drop_parens("(t((tr((X)))))") %>% show_ast()
+#' drop_parens("(t((tr((X)))))") |> show_ast()
+#' drop_parens("(t((tr((X)))))") |> show_ast()
 #' drop_parens("(A*B)")
 #' 
 #' # examples for all
-#' drop_parens("((A%*%(B*((C%*%C)))))") %>% show_ast()
-#' drop_parens("((A%*%(B*((C%*%C)))))", all = T)%>% show_ast()
+#' drop_parens("((A%*%(B*((C%*%C)))))") |> show_ast()
+#' drop_parens("((A%*%(B*((C%*%C)))))", all = TRUE)|> show_ast()
 #' 
-#' drop_parens("((A%*%(B*((C%*%C)))))") %>% show_ast()
-#' drop_parens("((A%*%(B*((C%*%C)))))", all = T)%>% show_ast()
+#' drop_parens("((A%*%(B*((C%*%C)))))") |> show_ast()
+#' drop_parens("((A%*%(B*((C%*%C)))))", all = TRUE)|> show_ast()
 #' 
 #' 
 #' 
-#' expr <- easy_parse("(X*A)%*%C") ; expr %>% show_ast
-#' drop_parens(expr) %>% show_ast()
-#' expr <- easy_parse("C%*%(X*A)") ; expr %>% show_ast 
-#' drop_parens(expr) %>% show_ast()
-#' expr <- easy_parse("(X%*%A)*C") ; expr %>% show_ast
-#' drop_parens(expr) %>% show_ast()
-#' expr <- easy_parse("C*(X%*%A)") ; expr %>% show_ast 
-#' drop_parens(expr) %>% show_ast()
-#' expr <- easy_parse("C%*%(X%*%A)") ; expr %>% show_ast 
-#' drop_parens(expr) %>% show_ast()
-#' expr <- easy_parse("(C%*%X)%*%A") ; expr %>% show_ast 
-#' drop_parens(expr) %>% show_ast()
+#' expr <- easy_parse("(X*A)%*%C") ; expr |> show_ast()
+#' drop_parens(expr) |> show_ast()
+#' expr <- easy_parse("C%*%(X*A)") ; expr |> show_ast()
+#' drop_parens(expr) |> show_ast()
+#' expr <- easy_parse("(X%*%A)*C") ; expr |> show_ast()
+#' drop_parens(expr) |> show_ast()
+#' expr <- easy_parse("C*(X%*%A)") ; expr |> show_ast()
+#' drop_parens(expr) |> show_ast()
+#' expr <- easy_parse("C%*%(X%*%A)") ; expr |> show_ast()
+#' drop_parens(expr) |> show_ast()
+#' expr <- easy_parse("(C%*%X)%*%A") ; expr |> show_ast()
+#' drop_parens(expr) |> show_ast()
 #' 
 #' # かっこに対する考察
-#' easy_parse("X%*%B%*%C") %>% show_ast()
-#' easy_parse("(X%*%B)%*%C") %>% show_ast()
-#' easy_parse("(X*B)%*%C") %>% show_ast()
-#' easy_parse("X*B%*%C") %>% show_ast() # %*%が＊よりも優先度高い
+#' easy_parse("X%*%B%*%C") |> show_ast()
+#' easy_parse("(X%*%B)%*%C") |> show_ast()
+#' easy_parse("(X*B)%*%C") |> show_ast()
+#' easy_parse("X*B%*%C") |> show_ast() # %*%が＊よりも優先度高い
 #' 
-#' second factor
-#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' # second factor
+#' expr <- easy_parse("A%*%C") ; expr |> show_ast()
 #' expr[[3]] <- easy_parse("X%*%B"); show_ast(expr)
 #' expr[[3]] <- easy_parse("(X%*%B)"); show_ast(expr)
 #' 
-#' first factor
-#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' # first factor
+#' expr <- easy_parse("A%*%C") ; expr |> show_ast()
 #' expr[[2]] <- easy_parse("X%*%B"); show_ast(expr)
 #' expr[[2]] <- easy_parse("(X%*%B)"); show_ast(expr)
 #' 
 #' #つまり
 #' #1. 構文木に代入する場合は、
-#' #   1.1. 左から順にの計算順序から変わる場合は、見た目上の()がつく。そうでない場合は()なし。
+#' #   1.1. 左から順にの計算順序から変わる場合は、見た目上の () がつく。
+#' # そうでない場合は()なし。
 #' #  1.2. ()を明示的に入れた場合はちゃんと実際の構文木上も現れる。
-#' #2. 必要不要問わず、"()"つきをパースすると、必ず()が構文木に現れる。
+#' #2. 必要不要問わず、"()" 付きをパースすると、必ず () が構文木に現れる。
 #' 
-#' expr <- easy_parse("A*C") ; expr %>% show_ast
+#' expr <- easy_parse("A*C") ; expr |> show_ast()
 #' expr[[2]] <- easy_parse("X%*%B"); show_ast(expr)
 #' expr[[2]] <- easy_parse("(X%*%B)"); show_ast(expr)
 #' 
-#' expr <- easy_parse("A*C") ; expr %>% show_ast
+#' expr <- easy_parse("A*C") ; expr |> show_ast()
 #' expr[[3]] <- easy_parse("X%*%B"); show_ast(expr)
 #' expr[[3]] <- easy_parse("(X%*%B)"); show_ast(expr)
 #' 
-#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' expr <- easy_parse("A%*%C") ; expr |> show_ast()
 #' expr[[2]] <- easy_parse("X*B"); show_ast(expr)
 #' expr[[2]] <- easy_parse("(X*B)"); show_ast(expr)
 #' 
-#' expr <- easy_parse("A%*%C") ; expr %>% show_ast
+#' expr <- easy_parse("A%*%C") ; expr |> show_ast()
 #' expr[[3]] <- easy_parse("X*B"); show_ast(expr)
 #' expr[[3]] <- easy_parse("(X*B)"); show_ast(expr)
 #' 
-#' expr <- easy_parse("(X*A)%*%C") ; expr %>% show_ast
-#' expr <- easy_parse("C%*%(X*A)") ; expr %>% show_ast 
+#' expr <- easy_parse("(X*A)%*%C") ; expr |> show_ast()
+#' expr <- easy_parse("C%*%(X*A)") ; expr |> show_ast()
 #' 
 #' # ということは、構文木上では一度かっこをほぼすべて外しても問題ない。（はず）
 #' 
+#' easy_parse("X%*%(B*C)") |> show_ast() # %*%が＊よりも優先度高い
+#' easy_parse("X%*%B*C") |> show_ast() # %*%が＊よりも優先度高い
+#' easy_parse("X%*%B*C") |> show_ast() # %*%が＊よりも優先度高い
 #' 
-#' 
-#' easy_parse("X%*%(B*C)") %>% show_ast() # %*%が＊よりも優先度高い
-#' easy_parse("X%*%B*C") %>% show_ast() # %*%が＊よりも優先度高い
-#' easy_parse("X%*%B*C") %>% show_ast() # %*%が＊よりも優先度高い
-#' 
+#' @return
+#' an expression
 #' 
 #' @export 
 #' 
@@ -351,11 +398,17 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
     }
   }
   return(expr)
-}
+
+} # end of drop_parens
 
 
 
-#' reorder unary oparators
+#' Reorder unary oparators
+#'
+#' @param expr input expression or string
+#' @param most_out ????
+#' @param add_exch_op ????
+#' @param exchangeable_ops ????
 #' 
 #' @examples
 #' unary_reorder_expr("(t(inv(A)))", "inv")
@@ -367,11 +420,15 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
 #' unary_reorder_expr("t(-(gune(A)))", "gune", add_exch_op = "gune")
 #' unary_reorder_expr("gune(t(-(inv(A))))", "inv", add_exch_op = "gune")
 #' 
-#' unary_reorder_expr("t(-(t(-(inv(A)))))", "inv", exchangable_ops = c("-", "(", "inv"))
+#' unary_reorder_expr("t(-(t(-(inv(A)))))", "inv"
+#' , exchangable_ops = c("-", "(", "inv"))
 #' 
 #' unary_reorder_expr("t(inv(A))", "t")
 #' unary_reorder_expr("inv(t(-(B)) - A)", "-")
 #'  
+#' @return
+#' an expression
+#'
 #' @export
 #' 
 
@@ -406,7 +463,8 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
     temp_path <- paths_to_mostout
     temp_path <- temp_path[1:depth]
     temp_path[depth] <- 1
-    c(deparse(assign_at_expr(expr, temp_path)), length(assign_at_expr(expr, temp_path[-depth])))
+    c(deparse(assign_at_expr(expr, temp_path))
+      , length(assign_at_expr(expr, temp_path[-depth])))
   })
   
   # exchange
@@ -434,14 +492,17 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
   
   return(expr)
   
-}
+} # end of unary_reorder_expr
 
 
 
 
 
 
-#' reduce_sign in expression
+#' Remove multiple consecutive signs from an expression
+#'
+#'
+#' @param epr an expression
 #' 
 #' @examples
 #' reduce_expr_sign("A+B+-C")
@@ -453,6 +514,9 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
 #' reduce_expr_sign("-A+-B")
 #' reduce_expr_sign("-A++B")
 #' 
+#' @return
+#' an expression
+#'
 #' @export
 #' 
 
@@ -472,12 +536,14 @@ reduce_expr_sign <- function(expr){
   }
   
   compose_MatProd(temp)
-}
 
-#' reduce I in expr
+} # end of reduce_expr_sign
+
+
+
+#' Remove multiplicative identity matrix I
 #'
 #' @examples
-#' # example code
 #' reduce_expr_I("A%*%I")
 #' reduce_expr_I("A*I")
 #' reduce_expr_I("I%*%A")
@@ -486,8 +552,13 @@ reduce_expr_sign <- function(expr){
 #' reduce_expr_I("A%*%((CB%*%I)%*%D)*E")
 #' reduce_expr_I("A%*%C%*%B%*%I%*%I*E")
 #' 
+#' \dontrun{
 #' reduce_expr_I("t(t(-t(inv(B%*%X)%*%t(t(-t(inv(t(inv(B%*%X)))%*%t(t(t(I)))%*%inv(t(inv(B%*%X))))))%*%inv(B%*%X)))%*%B)")
 #' grep_expr("t(t(-t(inv(B%*%X)%*%t(t(-t(inv(t(inv(B%*%X)))%*%t(t(t(I)))%*%inv(t(inv(B%*%X))))))%*%inv(B%*%X)))%*%B)")
+#' }
+#'
+#' @return
+#' an expression
 #' 
 #' @export
 #' 
@@ -515,13 +586,21 @@ reduce_expr_I <- function(expr){
     return(expr)
   }
   return(expr)
-}
+
+} # end of reduce_expr_I
 
 
-#' t(t(A)) -> A in expr
+
+
+#' Remove multiple consecutive t's or inv's from an expression
+#'
+#'
+#' @param expr an expression of a string
+#' @param sym  string vector of the variables to be assumed as symmetric
+#' @param use_unary_reorder = TRUE to use use_unary_reorder functin
+#'
 #'
 #' @examples
-#' example code
 #' cancel_double_expr("t(t(A))")
 #' cancel_double_expr("t(A)")
 #' cancel_double_expr("A")
@@ -534,13 +613,17 @@ reduce_expr_I <- function(expr){
 #' cancel_double_expr("t(I)%*%B%*%t(S)%*%inv(S)", sym = "S")
 #' cancel_double_expr("t(I)%*%B%*%t(S)%*%inv(S) * inv(I)", sym = "S")
 #' 
-#' cancel_double_expr("t(inv(t(inv(A)))) %*% -inv(t(-(B)))", use_unary_reorder=TRUE)
-#' cancel_double_expr("-inv(t(-(B)))", use_unary_reorder=TRUE)
+#' cancel_double_expr("t(inv(t(inv(A)))) %*% -inv(t(-(B)))"
+#' , use_unary_reorder=TRUE)
+#' cancel_double_expr("-inv(t(-(B)))"
+#' , use_unary_reorder=TRUE)
 #' 
-#' cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # これ期待通りの挙動ではないので要修正
+#' cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE)
+#' # これ期待通りの挙動ではないので要修正
 #' # →　修正完了
 #' 
-#' 
+#' @return
+#' an expression
 #' 
 #' @export
 #' 
@@ -621,7 +704,7 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
   }
   
   return(expr)
-}
+} # end of cancel_double_expr
 
 
 
@@ -629,6 +712,10 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
 
 #' grep for expr 
 #' 
+#'
+#' @param expr input expression or string
+#' @param varname  a string vector containing variable names to grep
+#'
 #' @examples 
 #' 
 #' expr <- "(tr(A %*% B) + A + t(C))"
@@ -641,6 +728,15 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
 #' grep_expr(expr, "(")
 #' grep_expr(expr, "t")
 #' 
+#' @return
+#' a list of list consisting of
+#' \preformatted{
+#' path
+#' parent
+#' match
+#' }
+#'
+#'
 #' @export
 #' 
 
@@ -683,11 +779,17 @@ grep_expr <- function(expr, varname) {
   
   find_var(expr)
   return(matches)
-}
+
+} # end of grep_expr
 
 
 
-#' assigne new expr at path
+#' assign new expr at path
+#'
+#'
+#' @param expr a quoted expression
+#' @param path from grep_expr
+#' @param value the value to be assigned
 #' 
 #' @examples
 #' 
@@ -701,6 +803,9 @@ grep_expr <- function(expr, varname) {
 #' 
 #' assign_at_expr(quote(tr(A %*% B) + A), 2)
 #' 
+#' @return
+#' an expression
+#'
 #' @export
 #' 
 
@@ -711,7 +816,8 @@ assign_at_expr <- function(expr, path, value) {
     if (is.character(expr_temp)){
       assign(expr_name, 
              tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
-               warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
+               warning(glue::glue(
+                "{expr_name}への入力が有効な R 式ではありません"))
                return(NULL)
              })
       )
@@ -747,7 +853,21 @@ assign_at_expr <- function(expr, path, value) {
 
 
 
-#' gsub for expr
+#' gsub for an expression
+#'
+#'
+#' @param expr an expression or a string
+#' @param object the symbol in the expression to be replaced by replacement
+#' @param replacement the replacement
+#'
+#' @examples
+#' gsub_expr("t(A)%*%(B+C)+D","C","X")
+#' gsub_expr("t(A)%*%(B+C)+C","C","X")
+#' gsub_expr("t(A)%*%(B+C)+D","B+C","X")
+#' gsub_expr("t(A)%*%(B+C)+D","t","inv")
+#'
+#' @return
+#' an expression
 #'
 #' @export
 #'
@@ -758,7 +878,8 @@ gsub_expr <- function(expr, object, replacement){
     if (is.character(expr_temp)){
       assign(expr_name, 
              tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
-               warning(glue::glue("{expr_name}への入力が有効な R 式ではありません"))
+               warning(glue::glue(
+                "{expr_name}への入力が有効な R 式ではありません"))
                return(NULL)
              })
       )
@@ -786,7 +907,15 @@ gsub_expr <- function(expr, object, replacement){
 
 #' Simplify Power
 #'
-#' @note Currently, nested expressions may not be handled correctly in some cases, so caution is advised.
+#'
+#' @param expr an expression of a string
+#'
+#' @details
+#' Currently, nested expressions may not be handled correctly
+#'  in some cases, so caution is advised.
+#'
+#' @return
+#'  an expression
 #'
 #' @export
 #'
@@ -807,9 +936,11 @@ simplify_power <- function(expr){
       length_encoding <- rle(symbols_past)
     }else if(op %in% c("%.%", "*")){
       tbl_symbol <- table(symbols_past)
-      length_encoding <- list(lengths = paste0("(", tbl_symbol, ")"), values = names(tbl_symbol))
+      length_encoding <-
+       list(lengths = paste0("(", tbl_symbol, ")"), values = names(tbl_symbol))
     }
-    temp_factors <- paste0(length_encoding$values,  "^", length_encoding$lengths)
+    temp_factors <-
+     paste0(length_encoding$values,  "^", length_encoding$lengths)
     temp_factors <- gsub("\\^\\(*1\\)*", "", temp_factors)
     expr_str <- paste(temp_factors, collapse = op)
     
@@ -820,7 +951,16 @@ simplify_power <- function(expr){
 } # end of simplify_power
 
 
-#' Reorder Trace and t
+#' Reorder the arguments of the tr and * functions
+#'
+#'
+#' Reorder the arguments of the tr and * functions
+#' so that the objects specified by X_ is placed at the right most position.
+#'
+#' @param expr an expression of a string
+#' @param X_ a string containing the object name to be moved
+#' @param op a vector of operators to be used
+#' @param attr = TRUE to use the flag for transposition
 #'
 #'
 #' @examples 
@@ -838,12 +978,16 @@ simplify_power <- function(expr){
 #' 
 #' trace_reorder("t(X)*B*C", "X", op = "*", attr = TRUE)
 #'
+#' @return
+#' an epression
+#'
 #' @export
 #'
 #'
 #'
 
-trace_reorder <- function(expr, X_, op=c("both", "%*%", "*", "%.%"), attr = FALSE){
+trace_reorder <- function(expr, X_, op=c("both", "%*%", "*", "%.%")
+                          , attr = FALSE){
   # X_ become most right side
   op = match.arg(op)
   

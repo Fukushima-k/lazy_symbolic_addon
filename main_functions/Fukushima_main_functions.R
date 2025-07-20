@@ -32,15 +32,15 @@
 #' printm(sexpr)
 #' sexpr_tex <- to_latex( sexpr, mat2sum=TRUE )
 #' 
-#' to_latex("a*b", print_html = T)
-#' to_latex("A*B", print_html = T)
-#' to_latex("X%.%B", print_html = T)
-#' to_latex("a*B", print_html = T)
+#' to_latex("a*b", print_html = TRUE)
+#' to_latex("A*B", print_html = TRUE)
+#' to_latex("X%.%B", print_html = TRUE)
+#' to_latex("a*B", print_html = TRUE)
 #' 
-#' to_latex("mD0(tr(X%*%B), X)", print_html=T)
-#' to_latex("mD0('tr(X%*%B)', 'X')", print_html=T)
-#' to_latex('mD0("tr(X%*%B)", "X")', print_html=T)
-#' to_latex('mD0("tr(X%*%B)")', print_html=T)
+#' to_latex("mD0(tr(X%*%B), X)", print_html=TRUE)
+#' to_latex("mD0('tr(X%*%B)', 'X')", print_html=TRUE)
+#' to_latex('mD0("tr(X%*%B)", "X")', print_html=TRUE)
+#' to_latex('mD0("tr(X%*%B)")', print_html=TRUE)
 #'
 #' \dontrun{
 #' library(htmltools)
