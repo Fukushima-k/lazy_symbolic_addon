@@ -716,7 +716,7 @@ test_that(" 前川先生からの0717", {
   ) %>%
     check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
 
-  mD0( 'tr(t(L %*% Phi %*% t(L)) %*% L %*% Phi %*% t(L))', 'L' )
+  mD0('tr(t(L %*% Phi %*% t(L)) %*% L %*% Phi %*% t(L))', 'L' )
     
   'tr(t(X %*% Phi %*% t(X)) %*% X %*% Phi %*% t(X))'
 })
