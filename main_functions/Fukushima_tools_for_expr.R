@@ -403,12 +403,17 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
 
 
 
+
+
 #' Reorder unary oparators
+#' 
+#' This function is used to move unary operators (e.g., `inv`, `t`, `-`) to the outermost position in an expression, as much as possible.
+#' It is useful for handling nested unary operators or when you want to prioritize moving specific operators outward.
 #'
 #' @param expr input expression or string
-#' @param most_out ????
-#' @param add_exch_op ????
-#' @param exchangeable_ops ????
+#' @param most_out The unary operator that should be moved to the outermost position.
+#' @param add_exch_op (optional) An additional unary operator to be added to the set of exchangeable operators. This is useful if you have custom unary operators.
+#' @param exchangable_ops A vector of unary operators that can be exchanged. The default is `c("inv", "(", "t", "-")`.
 #' 
 #' @examples
 #' unary_reorder_expr("(t(inv(A)))", "inv")
@@ -514,6 +519,15 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
 #' reduce_expr_sign("-A+-B")
 #' reduce_expr_sign("-A++B")
 #' 
+#' 
+#' reduce_expr_sign("-A+++B")
+#' reduce_expr_sign("-A+----B")
+#' reduce_expr_sign("-A+--++--B")
+#' reduce_expr_sign("-A+++B")
+#' reduce_expr_sign("-A--(A-B)")
+#' reduce_expr_sign("(A--B)")
+#' reduce_expr_sign("(A----t(B%*%-C))")
+#' 
 #' @return
 #' an expression
 #'
@@ -537,6 +551,69 @@ reduce_expr_sign <- function(expr){
   
   compose_MatProd(temp)
 
+} # end of reduce_expr_sign
+
+
+
+reduce_expr_sign <- function(expr){
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  drop_sign_plus <- function(expr){
+    if(is.call(expr)){
+      if(expr[[1]] == "+" & length(expr)==2){
+        return(drop_sign_plus(expr[[2]]))
+      } else if(length(expr)==2){
+        expr[[2]] <- drop_sign_plus(expr[[2]])
+        return(expr)
+      } else if(length(expr)==3){
+        expr[[2]] <- drop_sign_plus(expr[[2]])
+        expr[[3]] <- drop_sign_plus(expr[[3]])
+        return(expr)
+      }
+    }
+    return(expr)
+  }
+  
+  sign_exchange <- function(expr){
+    if(is.call(expr)){
+      if(length(expr)==3){
+        
+        if(is.call(expr[[3]])){
+          if(length(expr[[3]])==2 & expr[[3]][[1]] == "-"){
+            if(expr[[1]] == "+") {
+              expr[[1]] <- as.symbol("-")
+              expr[[3]] <- sign_exchange(expr[[3]][[2]])
+              return(expr)
+            } 
+            if(expr[[1]] == "-") {
+              expr[[1]] <- as.symbol("+")
+              expr[[3]] <- sign_exchange(expr[[3]][[2]])
+              return(expr)
+            }
+          }
+        }
+        
+        expr[[2]] <- sign_exchange(expr[[2]])
+        expr[[3]] <- sign_exchange(expr[[3]])
+        return(expr)
+      } else if(length(expr)==2){
+        expr[[2]] <- sign_exchange(expr[[2]])
+        return(expr)
+      } 
+    }
+    return(expr)
+  }
+  
+  # reduce only sign
+  expr <- drop_sign_plus(expr)
+  expr <- cancel_double_expr(expr, double_op = "-")
+  expr <- sign_exchange(expr)
+  
+  return(expr)
 } # end of reduce_expr_sign
 
 
@@ -631,7 +708,7 @@ reduce_expr_I <- function(expr){
 
 
 
-cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
+cancel_double_expr <- function(expr, double_op = c("t", "inv", "-"), sym, inv, use_unary_reorder = FALSE){
   if(is.character(expr))
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
       warning("入力が有効な R 式ではありません")
@@ -641,7 +718,7 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
   sym_mats <- c("I")
   inv_mats <- c("I")
   
-  double_op <- c("t", "inv", "-")
+  # double_op <- c("t", "inv", "-")
   
   
   
@@ -718,8 +795,15 @@ cancel_double_expr <- function(expr, sym, inv, use_unary_reorder = FALSE){
 #'
 #' @examples 
 #' 
-#' expr <- "(tr(A %*% B) + A + t(C))"
-#' grep_expr(expr, "A")
+#' expr <- easy_parse("(tr(A %*% B) + A + t(C))")
+#' res <- grep_expr(expr, "A")
+#' length(res) # -> 2. exprの中に"A"はふたつ含まれているので、それぞれの結果
+#' # 一つ目のAの結果
+#' expr[[2]][[2]][[2]][[2]][[2]]  # res[[1]]$pathの意味
+#' expr[[2]][[2]][[2]][[2]]       # res[[1]]$parentの意味
+#' # ２つ目のAの結果
+#' expr[[2]][[2]][[3]]　　　 # res[[2]]$pathの意味
+#' expr[[2]][[2]] 　　　　　 # res[[2]]$parentの意味
 #' 
 #' grep_expr(expr, "t(C)")
 #' grep_expr(expr, "A%*%B")

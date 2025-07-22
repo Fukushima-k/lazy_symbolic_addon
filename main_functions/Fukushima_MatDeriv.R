@@ -242,6 +242,18 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       ################################################################
       ################################################################
       
+      if(!is.call(expr[[2]])){
+        if(as.character(expr[[2]]) != X_){
+          stop("想定外の挙動です。")
+        }
+        default_expr <-  safe_deparse(expr)
+        if (trace_chain) cat("\nTechnic: tr(X) -> tr(X %*% I) because X is not `call`\n")
+        expr[[2]] <- call("%*%", as.symbol("I"), expr[[2]])
+        if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+        
+        res <- mD0(expr, X_, trace_chain=.tc)
+        return(res)
+      }
       if (as.character(expr[[2]][[1]]) == "%*%") {
         # トレース内最も右のファクター
         most_right <- expr[[2]][[3]]
@@ -498,13 +510,59 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       # S4
       if (as.character(expr[[1]]) == "det"){
         if(expr[[2]] == expr_var){
-          if (trace_chain) cat("S4 : mD0(det(X), X)")
+          if (trace_chain) cat("S4 : mD0(det(X), X)\n")
           res_str <- glue::glue("det({X_})*inv(t({X_}))")
           # result <- parse(text = res_str)[[1]]
           return(res_str)
         }
+        
+        
+        if (trace_chain) cat("C1: using chain rule for det() ...\n")
+        if( debug ) printm(safe_deparse(expr))
+        
+        FX = safe_deparse(expr[[2]])
+        
+        if (debug) printm(FX)
+        
+        # depth=sys.nframe()
+        depth = ""
+        mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
+        FXplaceholder <- glue::glue("FX{depth}")
+        
+        fFX <- gsub_expr(expr, FX, replacement = FXplaceholder)
+        
+        if (debug) {
+          fFX_str <- safe_deparse(fFX)
+          printm(fFX_str)
+          cat("mD0(f(F(X)), X) = mD0(tr(t(mD0(f(FX), FX)) %*% F(X)), X)\n")
+          cat("f(FX) =", fFX_str, "\n")
+          cat("F(X) =", FX, "\n\n")
+        } 
+        
+        # mD0(f(FX), X)
+        mD_fFX = mD0(fFX, FXplaceholder, trace_chain=.tc)
+        if (debug) printm(mD_fFX)
+        
+        res1FX = easy_parse(paste0("tr(t(", mD_fFXplaceholder, ")%*%", FXplaceholder, ")"))
+        res1FX = gsub_expr(res1FX, FXplaceholder, FX)
+        
+        if (debug) printm(safe_deparse(res1FX))
+        
+        res_temp = mD0(res1FX, X_, trace_chain=.tc)
+        
+        if (debug) printm(res_temp)
+        res <- gsub_expr(res_temp, mD_fFXplaceholder, mD_fFX)
+        res <- gsub_expr(res, FXplaceholder, FX)
+        res = safe_deparse(res)
+        
+        if (debug) printm(res)
+        
+        
+        res <- safe_deparse(cancel_double_expr(res))
+        
+        return(res)
+        
       }
-      
       
       # other scalar functions
       cat("\n**** Currently, trace and det are the only functions available.***\n")

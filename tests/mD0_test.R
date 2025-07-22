@@ -179,6 +179,17 @@ if(0){
     cancel_double_expr("-inv(t(-(B)) - A)", use_unary_reorder=TRUE) # g
   
     
+    
+  # cancel_double_expr
+  # 誤 cancel_double_expr("inv(inv(t(B)+I))")  --->  t(B) + I
+  # 正 そのまま
+  
+  
+  t(B) %*% I
+  Inv(Inv(t(B) %*% I))
+    
+    
+    
 }
 
 # assign_at_expr(expr, numeric(0))
@@ -654,14 +665,35 @@ test_that(" check placeholder  ", {
 
 test_that(" 前川先生からの0717", {
   
+  
+  
   c(
     "tr(A%*%(I*t(X)%*%X))",
     "tr(A%*%(I%.%t(X)%*%X))",
+    
+    # det() chain rule
+    "det(t(X))",
+    "det(A%*%X)",
+    "tr(A%*%inv(t(X)))",
+    "tr(A%*%inv(t(X)%*%B%*%X)%*%C)",
+    "tr(X)",
+    # 'tr(t(X %*% C %*% t(X)) %*% X %*% C %*% t(X))', # L -> X Phi -> C
+    
+    
     "tr(A)")%>%
     check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
-  
+
+  mD0( 'tr(t(L %*% Phi %*% t(L)) %*% L %*% Phi %*% t(L))', 'L' )
+    
+  'tr(t(X %*% Phi %*% t(X)) %*% X %*% Phi %*% t(X))'
 })
 
 
+
+test_that("tools for expr", {
+  expect_equal(reduce_expr_sign("---A")            , easy_parse("-A"))
+  expect_equal(reduce_expr_sign("+++A")            , easy_parse(" A"))
+
   
+})
   
