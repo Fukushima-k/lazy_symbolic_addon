@@ -78,7 +78,8 @@
 # sum2mat -----------------------------------------------------------------
 sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
   
-  expr_str <- expr_str |> str_replace_all("\\{", "chu_kakko\\(") |> str_replace_all("\\}", "\\)")
+  expr_str <- expr_str |> str_replace_all("\\{", "ck\\(") |> str_replace_all("\\}", "\\)")
+  expr_str <- linear_expand(expr_str, "s")
   expr <- tryCatch(parse(text = expr_str)[[1]], error = function(e) {
     warning("入力が有効な R 式ではありません")
     return(NULL)
@@ -308,7 +309,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
   expr_result <- sum2mat_convert(expr)
 
   if(deparse_result){
-    expr_result <- deparse(expr_result)
+    expr_result <- safe_deparse(expr_result)
     if( print ) printm(expr_result)
   }
 
