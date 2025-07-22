@@ -209,7 +209,7 @@ X <- matrix(rnorm(3*3), 3)
 A <- 3*matrix(rnorm(3*3), 3)
 B <- 0.3*matrix(rnorm(3*3), 3)
 C <- -1*matrix(rnorm(3*3), 3)
-O<- X*0
+O<- 0
 p <- sample(2:10, size = 1)
 I <- diag(3)
 
@@ -226,12 +226,13 @@ check_numerical_identity <- function(funcs, seed = 123){
     An <- 3*matrix(rnorm(3*3), 3)
     Bn <- 0.3*matrix(rnorm(3*3), 3)
     Cn <- -1*matrix(rnorm(3*3), 3)
-    O <- Xn*0
+    O <- 0
     p <- sample(2:10, size = 1)
     In <- diag(3)
     Gradmn <- gradmn(func, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
     Gradma <- gradma(func, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
-    max(abs(Gradmn - Gradma))
+    
+    max(abs(as.vector(Gradmn) - as.vector(Gradma)))
   })
 }
 
@@ -243,18 +244,18 @@ check_numerical_identity_by_b <- function(funcs, seed = 123){
   sapply(funcs, function(func){
     set.seed(seed)
     
-    bn <- rnorm(3)
-    Yn <- rnorm(3)
+    bn <- matrix(rnorm(3))
+    Yn <- matrix(rnorm(3))
     Xn <- matrix(rnorm(3*3), 3)
     An <- 3*matrix(rnorm(3*3), 3)
     Bn <- 0.3*matrix(rnorm(3*3), 3)
     Cn <- -1*matrix(rnorm(3*3), 3)
-    O <- Xn*0
+    O <- 0
     p <- sample(2:10, size = 1)
     In <- diag(3)
     Gradmn <- gradmn(func, b=bn, Y=Yn, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
     Gradma <- gradma(func, b=bn, Y=Yn, X=Xn, A=An, B=Bn, C=Cn, O=O, I = In, p=p, print=0, debug=0 )
-    max(abs(Gradmn - Gradma))
+    max(abs(as.vector(Gradmn) - as.vector(Gradma)))
   })
 }
 
@@ -343,6 +344,8 @@ test_that("trace_reorder both * a and  %*%", {
   expect_equal(trace_reorder("A*(X*B)*C", "X"),       easy_parse("B  *  C  *   A  *  X "))
   expect_equal(trace_reorder("A%*%(X*B)%*%C", "X"),   easy_parse("C %*% A %*% (B  *  X)"))
   expect_equal(trace_reorder("A*(X%*%B)*C", "X"),     easy_parse("C  *  A  *  (X %*% B)")) # この場合は、どう処理をするべきか。
+    # show_ast(trace_reorder("A*(X%*%B)*C", "X"))
+    # show_ast(easy_parse("C  *  A  *  (X %*% B)"))
   expect_equal(trace_reorder("A%*%B%*%(F%*%((E%*%(X%*%C))%*%D))", "X") , easy_parse("C %*% D %*% A %*% B %*% F %*% E %*% X"))
   expect_equal(trace_reorder("(A%*%B)%*%(X%*%C)", "X") , easy_parse("C %*% (A %*% B) %*% X"))
      drop_parens("(A%*%B)%*%(X%*%C)")
@@ -495,6 +498,7 @@ mD0_parsed("tr(A*(X))", "X", debug = 1)    #
 expect_equal(decompose_MatProd("A*(X)", "*", target_X = "X"), decompose_MatProd("A*X", "*", target_X = "X"))
 expect_equal(decompose_MatProd("A*(((X)))", "*", target_X = "X"), decompose_MatProd("A*X", "*", target_X = "X"))
 expect_equal(decompose_MatProd("((A*(((X)))))", "*", target_X = "X"), decompose_MatProd("A*X", "*", target_X = "X"))
+expect_equal(decompose_MatProd("((A*(((X %*% B)))))", "*", target_X = "X"), decompose_MatProd("A*(X%*%B)", "*", target_X = "X"))
 
 # mD0実行時の最初のdrop_parensで外れる部分。
 expect_equal(mD0("tr(A%*%t(X))"),    mD0("(( tr( A %*% (t((X)) ) ) ))"))
@@ -744,46 +748,53 @@ test_that(" 0719", {
     recompose_MatProd(c("+"))
   
   
-  linear_expand_expr("tr(t(Y-X)%*%(Y-X))","t","%*%","tr")  %>% 
-    decompose_MatProd(op = c("+"))
   
-  mD0("tr(A%*%(B-X))")
-  mD0("tr(A%*%B-A%*%X)")
-  mD0("tr(A%*%B)-tr(A%*%X)")
-  mD0("tr(t(Y - X %*% b) %*% (Y - X %*% b))", "b")
+  expect_equal(make_minus_sign("X - A -(B -C)"),  easy_parse("X+-A+-(B+-C)"))
+  expect_equal(make_minus_sign("t(X) - A -t(t(B) -t(C))"),  easy_parse("t(X)+-A+-t(t(B)+-t(C))"))
+  expect_equal(linear_expand_expr("tr(t(Y-X)%*%(Y-X))","t","%*%","tr") %>% make_minus_sign(), 
+               easy_parse("tr(t(Y) %*% Y) +- tr(t(X) %*% Y) +- (tr(t(Y) %*% X) +- tr(t(X) %*%X))")) 
+  expect_equal(
+    "tr(t(Y) %*% Y) - tr(t(Y) %*% X) - (tr(t(X) %*% Y) - tr(t(X) %*%X))" %>% recompose_MatProd(c("+")),
+    easy_parse("tr(t(Y) %*% Y) -tr(t(Y) %*% X) -tr(t(X) %*% Y) + tr(t(X) %*%X)"))
+  expect_equal(
+    "A - B - (C - D)" %>% recompose_MatProd(c("+")),
+    easy_parse("A-B-C+D"))
+  
+  "tr(t(A-X)%*%(A-X))" %>%
+    check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
   
   
-  linear_expand_expr("tr(t(Y - X %*% b) %*% (Y - X %*% b))", "t", "%*%", "tr") 
-  linear_expand_expr("tr(t(Y - X) %*% (Y - X))", "t", "%*%", "tr") 
   
   
-  # linear_expand_expr("tr(t(Y) %*% (Y - X)) - tr(t(X) %*% (Y - X))", "t", "%*%", "tr") 
-  # %>% 
-  #   linear_expand_expr("tr", "%*%")
+  "tr(t(Y - X %*% b) %*% (Y - X %*% b))" %>% 
+    mD0("b")
   
-  "tr(A%*%(X-B))" %>% 
-    easy_parse() %>% 
-    drop_parens(all = TRUE) %>% 
-    show_ast() %>% 
-    linear_expand("tr")
+  O-t(t(Y)%*%X)-(t(t(Y)%*%X)-(t(t(X%*%b)%*%X)+t(t(X%*%b)%*%X)))
+  
+  
+  gradmn("tr(t(Y - X %*% b) %*% (Y - X %*% b))" , b=as.matrix(b), X = X, Y = Y)
+  
+  eval(parse(text = "O-t(t(Y)%*%X)-(t(t(Y)%*%X)-(t(t(X%*%b)%*%X)+t(t(X%*%b)%*%X)))"))
+  # eval(parse(text = "
+             t(t(t(Y)%*%X)-(t(t(X%*%b)%*%X)+t(t(X%*%b)%*%X)))
+             # "))
+  
+  "tr(t(Y - X %*% b) %*% (Y - X %*% b))" %>%
+    check_numerical_identity_by_b(seed="r") %>% sapply(testthat::expect_lt, criteria)
+  
   
 
-  dexpr <-   mD0( "tr(t(C - A%*%X) %*% (C - A%*%X))")
-  
-  eval(parse(text = dexpr))
-  eval(parse(text = "-2*t(A)%*% (C + A%*%X)"))
-  
+
   c(
     # 最小二乗法をしたい。
     # "tr(t(Y - X %*% b) %*% (Y - X %*% b))",
     "tr(A %*% (B - X))", # これがループする -> 解決
     
-    "tr(t(C - A%*%X) %*% (C - A%*%X))",　# 　Y = AX (本当はY=Xbだが、Xで微分がデフォなので)
+    "tr(t(C - A%*%X) %*% (C - A%*%X))"　# 　Y = AX (本当はY=Xbだが、Xで微分がデフォなので)
     # 通るようになったが、mD0( "tr(t(C - A%*%X) %*% (C - A%*%X))")が"-2*t(A)%*% (C + A%*%X)"になってしまう。
   　# 原因は、linea_expand(A-B)*(A-B) が A*A - A*B - B*A ** - ** B*Bになってしまうから
   　# recompose_MatProd()をoffにしたので、いったんOK！
-  　
-    "tr(A)"
+  　# "tr(A)"
   ) %>%
     check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
   
