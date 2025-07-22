@@ -89,6 +89,12 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
     # rule (23)
     sums <- c("+", "-")
     if (as.character(expr[[1]]) %in% sums) {
+      if(length(expr) == 2){
+        if(trace_chain) cat("sign is considered ... \n")
+        expr[[2]] <- easy_parse(mD0(expr[[2]], X_, trace_chain=.tc))
+        res <- safe_deparse(expr)
+        return(res)
+      }
       if (trace_chain){
         cat("rule(23): mD0(A+B,X) = mD0(A,X) + mD0(B,X)\n")
         cat("mD of sum is converted to sum of mDs.\n")
@@ -224,40 +230,6 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       expr[[2]] <- trace_reorder(expr[[2]], X_)
       if(debug) cat("reordered trace: ", safe_deparse(expr), "\n\n")
       
-      ################################################################
-      ##### for Hadamar Product ######################################
-      ################################################################
-      # もう少し上手に書けるはず。
-      # 要は、* を見つけてフラグを立てることと、
-      # tr(B%*%(A*X)) の形にすること。
-      #
-      # expr cannot be:
-      #  tr(t(X)*A)
-      #
-      
-      # move X_ to the right most position  (t(X_) will be taken care of.)
-      # ただし、 "(X*A)" や "(X%*%A)" は変わらないので要注意。
-      # expr[[2]] <- trace_reorder(expr[[2]], X_, op = "*")
-      
-      # change tr(A*B) or tr((A*B)) to tr(I%*%(A*B))
-      hp = 0
-      # if(0){
-      #   exprstr = safe_deparse(expr)
-      #   exprstr = gsub(" ", "", exprstr)
-      #   if (regexpr("\\w+\\*\\w+", exprstr)[[1]] > 0) {
-      #     if( debug ) printm("input:", exprstr)
-      #     exprstr = gsub("^tr\\(\\(*(\\w+\\*\\w+)\\)*\\)$"
-      #                    , "tr\\(I%*%\\(\\1\\)\\)", exprstr)
-      #     #exprstr=gsub("))",")",exprstr, fixed=TRUE)
-      #     if( debug ) printm("after:", exprstr)
-      #     hp = 1
-      #     expr = parse(text = exprstr)[[1]]
-      #   } 
-      # } # 代わりに下の部分で評価
-      
-      ################################################################
-      ################################################################
-      
       if(!is.call(expr[[2]])){
         if(as.character(expr[[2]]) != X_){
           stop("想定外の挙動です。")
@@ -285,23 +257,19 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
         invs <- paste0(c("inv", "Inv", "ginv", "Ginv"), 
                        "(", X_, ")")
         
-        # Hadamar の特定公式フラグ        
-
+        ##### for Hadamar Product ######################################
+        hp = 0
         if(is.call(most_right))
         if(length(most_right)>2)
         if((as.character(most_right[[1]]) %in% c("*", "%.%")) &  most_right[[3]]==X_){
           hp = 1
         }
         
-        
-        
         if (debug) {
           # 特定公式利用可能チェック
           printm(mR, X_, mR == X_, hp)
           printm(invs, mR %in% invs)
         }
-
-        
         
         # 2 cases to be checked exist. 
         # 1. FreeQ(oL, X_) -> TRUE; FreeQ(mR, X_) ->FALSE
@@ -463,6 +431,10 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
         else{
           
           
+          depth=sys.nframe()
+          # depth = ""
+          mRc_placeholder <- glue::glue("mRc{depth}")
+          oLc_placeholder <- glue::glue("oLc{depth}")
           
           # Here, mR is either X_, inv(X_) or Hadamar Prod
           # and other_left contains X_, therefor, both factors contain X_
@@ -470,8 +442,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           if (debug) cat("mD0(tr(oL %*% mR)) = mD0(tr(oL %*% mRc)) + mD0(tr(oLc %*% mR))\n")
           if (debug) printm(mR, oL)
           first_term <- second_term <- expr
-          first_term[[2]][[3]] <- as.symbol("mRc")
-          second_term[[2]][[2]] <- as.symbol("oLc")
+          first_term[[2]][[3]] <-  as.symbol(mRc_placeholder)
+          second_term[[2]][[2]] <- as.symbol(oLc_placeholder)
           if (debug) cat("the 1st term of P1 is: mD0(", safe_deparse(first_term), ",", X_, ")\n")
           if (debug) cat("the 2nd term of P1 is: mD0(", safe_deparse(second_term),",", X_, ")\n")
           # if (debug) cat("the 2nd term of P1 is:", paste0("mD0(tr(oLc%*%", mR, "),", X_, ")"),"\n")
@@ -481,13 +453,13 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
           
           
           res1 = mD0(safe_deparse(first_term), X_, trace_chain=.tc)
-          res11 = gsub_expr(res1, "mRc", mR)
+          res11 = gsub_expr(res1, mRc_placeholder, mR)
           
           if (debug) printm(res1, res11)
           if (debug) cat("*** processing the 2nd term* ***\n")
           
           res2 =  mD0(safe_deparse(second_term), X_, trace_chain=.tc)
-          res22 = gsub_expr(res2, "oLc", oL)
+          res22 = gsub_expr(res2, oLc_placeholder, oL)
           
           if (debug) printm(res2, res22)
           
@@ -584,7 +556,6 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       cat("\n**** Currently, trace and det are the only functions available.***\n")
       res = paste0("mD0(", safe_deparse(expr), ", ", X_, ")")
       return(res)
-      
     }
     
   } # end of is.call(expr)

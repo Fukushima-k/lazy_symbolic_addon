@@ -726,10 +726,6 @@ test_that(" 前川先生からの0717", {
 })
 
 test_that(" 0719", {
-  
-  
-  
-  
   expect_equal(linear_expand_expr("tr(A-B)", "tr", "inv")               ,easy_parse("tr(A)-tr(B)"))
   expect_equal(linear_expand_expr("inv(tr(A-B)) %*% C", "tr")           ,easy_parse(" inv(tr(A) - tr(B)) %*% C   "))
   expect_equal(linear_expand_expr("tr(A-B+C)", "tr")                    ,easy_parse("  tr(A) - tr(B) + tr(C)  "))
@@ -738,16 +734,6 @@ test_that(" 0719", {
   expect_equal(linear_expand_expr("tr(A%*%(X-B))", "tr", "%*%", "(")    ,easy_parse(" tr(A %*% X) - tr(A %*% B)   "))
   expect_equal(linear_expand_expr("tr(t(Y-X)%*%(Y-X))","t","%*%","tr")    ,
   easy_parse(" tr(t(Y) %*% Y)- tr(t(X) %*% Y)  - (tr(t(Y) %*% X)  - tr(t(X) %*%X))"))
-  
-  
-  (A-B)*C
-  (A*C-B*C)
-  
-  
-  "tr(t(Y) %*% Y) - tr(t(Y) %*% X) - (tr(t(X) %*% Y) - tr(t(X) %*%X))" %>% 
-    recompose_MatProd(c("+"))
-  
-  
   
   expect_equal(make_minus_sign("X - A -(B -C)"),  easy_parse("X+-A+-(B+-C)"))
   expect_equal(make_minus_sign("t(X) - A -t(t(B) -t(C))"),  easy_parse("t(X)+-A+-t(t(B)+-t(C))"))
@@ -762,24 +748,9 @@ test_that(" 0719", {
   
   "tr(t(A-X)%*%(A-X))" %>%
     check_numerical_identity(seed="r") %>% sapply(testthat::expect_lt, criteria)
-  
-  
-  
-  
-  "tr(t(Y - X %*% b) %*% (Y - X %*% b))" %>% 
-    mD0("b")
-  
-  O-t(t(Y)%*%X)-(t(t(Y)%*%X)-(t(t(X%*%b)%*%X)+t(t(X%*%b)%*%X)))
-  
-  
-  gradmn("tr(t(Y - X %*% b) %*% (Y - X %*% b))" , b=as.matrix(b), X = X, Y = Y)
-  
-  eval(parse(text = "O-t(t(Y)%*%X)-(t(t(Y)%*%X)-(t(t(X%*%b)%*%X)+t(t(X%*%b)%*%X)))"))
-  # eval(parse(text = "
-             t(t(t(Y)%*%X)-(t(t(X%*%b)%*%X)+t(t(X%*%b)%*%X)))
-             # "))
-  
-  "tr(t(Y - X %*% b) %*% (Y - X %*% b))" %>%
+
+  # 残差行列
+    "tr(t(Y - X %*% b) %*% (Y - X %*% b))" %>%
     check_numerical_identity_by_b(seed="r") %>% sapply(testthat::expect_lt, criteria)
   
   
@@ -806,6 +777,57 @@ test_that(" 0719", {
   # decompose_MatProd() で分配法則を実現したい。
   # A - (B+C) = A -B -C
   
+  # 課題1 
+  expr=ssq("S-(L%*%Phi%*%t(L)+Psi)", expand=2) 
+  
+  D = 5
+  Sn <- matrix(rnorm(D*D), D)
+  Ln <- 3*matrix(rnorm(D*D), D)
+  Phin <- 0.7*matrix(rnorm(D*D), D)
+  Psin <- 0.2*matrix(rnorm(D*D), D)
+  Cn <- matrix(rnorm(D*D), D)
+  O <- 0
+  In <- diag(D)
+  Gradmn <- gradmn(expr, L=Ln, S=Sn, Phi=Phin, Psi=Psin, C=Cn, print=0, debug=0 )
+  Gradma <- gradma(expr, L=Ln, S=Sn, Phi=Phin, Psi=Psin, C=Cn, print=0, debug=0 )
+  max(abs(as.vector(Gradmn) - as.vector(Gradma)))
+  
+  
+  check_numerical_identity_forssq <- function(funcs){
+    sapply(funcs, function(expr){
+      Gradmn <- gradmn(expr, L=Ln, S=Sn, Phi=Phin, Psi=Psin, C=Cn, print=0, debug=0 )
+      Gradma <- gradma(expr, L=Ln, S=Sn, Phi=Phin, Psi=Psin, C=Cn, print=0, debug=0 )
+      # c(mD0(expr, "L"),
+        max(abs(as.vector(Gradmn) - as.vector(Gradma)))
+        # )
+    })
+  }
+  
+  expr %>% decompose_MatProd("+")
+  
+  c("tr(t(S)%*%S)", # O
+    "-tr(t(L %*% Phi %*% t(L)) %*% S)", # dont work  課題1-1
+    "-tr(t(S) %*% L %*% Phi %*% t(L))",   # dont work 課題1-2
+    "tr(t(L %*% Phi %*% t(L)) %*% L %*% Phi %*% t(L))", # big  課題1-3
+    "tr(C%*% t(L%*%Phi%*%t(L)))", # res = "t(t(Phi)%*%t(L)%*%C)+t(Phi%*%t(L)%*%t(C))"
+    "tr(L%*%Phi%*%t(L) %*% C)",   # res = "t(t(Phi)%*%t(L)%*%t(C))+t(Phi%*%t(L)%*%C)"
+    "-tr(t(S) %*% Psi)", # O
+    "tr(t(L %*% Phi %*% t(L)) %*% Psi)", # less
+    "-tr(Psi %*% S)",# O
+    "tr(Psi %*% L %*% Phi %*% t(L))", # less
+    "tr(Psi %*% Psi)" # O
+    ) %>% 
+    check_numerical_identity_forssq()
+  
+  # 課題1-1 
+  mD0("-tr(t(L %*% Phi %*% t(L)) %*% S)", X_ = "L")
+  # rule(23)の所でunary operator -の存在が考慮されていなかった。
+  # 課題1-2
+  # "-tr(t(S) %*% L %*% Phi %*% t(L))",   # dont work
+  
+  # 課題1-3
+  mD("tr(t(L %*% Phi %*% t(L)) %*% L %*% Phi %*% t(L))", "L", debug = 1) # big
+  # mRcとoLcの置換を再帰的に行うときのdepthを考慮せず失敗していた。depth付与
   
 })
 
