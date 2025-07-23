@@ -834,9 +834,90 @@ test_that(" 0719", {
 
 
 test_that("tools for expr", {
-  expect_equal(reduce_expr_sign("---A")            , easy_parse("-A"))
-  expect_equal(reduce_expr_sign("+++A")            , easy_parse(" A"))
+  testthat::expect_equal(reduce_expr_sign("---A")            , easy_parse("-A"))
+  testthat::expect_equal(reduce_expr_sign("+++A")            , easy_parse(" A"))
 
+  
+  
+  for_check_decomp_MP <- function(res){
+    list(res$terms  %>% sapply(safe_deparse),
+         res$ops)
+  }
+  
+  
+  testthat::expect_equal(
+  decompose_MatProd_new("A%*%B%*%C%*%D%*%E", "%*%")  %>% sapply(safe_deparse),
+  c("A", "B", "C", "D", "E"))
+  testthat::expect_equal(
+  decompose_MatProd_new("A%*%B%*%C%*%D%*%E", "*")  %>% sapply(safe_deparse),
+  c("A%*%B%*%C%*%D%*%E"))
+  
+  testthat::expect_equal(
+  decompose_MatProd("a+b-c+d+e", c("+"), return_op = TRUE)               %>% for_check_decomp_MP(),
+  list(c("a", "b", "-c", "d", "e"), c("+", "+", "+", "+")))
+  testthat::expect_equal(
+  decompose_MatProd_new("a+b-c+d+e", c("+"), return_op = TRUE)           %>% for_check_decomp_MP(),
+  list(c("a", "b", "-c", "d", "e"), c("+", "+", "+", "+")))
+  testthat::expect_equal(
+  decompose_MatProd("a+b-c+d+e", c("-", "+"), return_op = TRUE)          %>% for_check_decomp_MP(),
+  list(c("a", "b", "-c", "d", "e"), c("+", "+", "+", "+")))
+  
+  testthat::expect_equal(
+  decompose_MatProd_new("a+b-(c+d)+e", c("-", "+"), return_op =  TRUE)       %>% for_check_decomp_MP(),
+  list(c("a","b","-(c+d)","e"), c("+","+","+")))
+  testthat::expect_equal(
+  decompose_MatProd_new("a+b-(c+d)+e", c("+"), return_op =  TRUE)            %>% for_check_decomp_MP(),
+  list(c("a","b","-(c+d)","e"), c("+","+","+")))
+  
+  testthat::expect_equal(
+  decompose_MatProd_new("a+b--e", c("+"),  return_op =  TRUE)                %>% for_check_decomp_MP()
+  ,list(c("a","b","--e"), c("+","+")))
+  testthat::expect_equal(
+  decompose_MatProd_new("a+b-+e", c("-", "+"),  return_op =  TRUE)           %>% for_check_decomp_MP()
+  ,list(c("a","b","-+e"), c("+","+")))
+  testthat::expect_equal(
+  decompose_MatProd_new("+a++b-+-c+-d-+e", c("-", "+"),  return_op =  TRUE)  %>% for_check_decomp_MP()
+  ,list(c("+a","+b","-+-c","-d","-+e"), c("+","+","+","+")))
+  
+  testthat::expect_equal(
+    decompose_MatProd_new("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE) %>% sapply(safe_deparse)
+    ,c("A", "B", "X", "C", "D"))
+  # testthat::expect_equal(
+  #   decompose_MatProd_new("A*B*((X%*%C)*D)", "%*%", flat = TRUE) %>% sapply(safe_deparse)
+  #   ,"A*B*((X%*%C)*D)")
+  testthat::expect_equal(
+    decompose_MatProd_new("A*B*((X*C)*D)", "*", flat = TRUE) %>% sapply(safe_deparse)
+    ,c("A", "B", "X", "C", "D"))
+  
+  # testthat::expect_equal(
+  #   decompose_MatProd_new("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE)    %>% for_check_decomp_MP()
+  #  ,list(c("A", "B", "-X", "-C", "-D", "-E"), c("+","+","+","+","+")))
+  # testthat::expect_equal(
+  #   decompose_MatProd_new("A+B-((X+C)+D)-E", c("+"), flat = TRUE, return_op = TRUE)         %>% for_check_decomp_MP()
+  #  ,list(c("A", "B", "-X", "-C", "-D", "-E"), c("+","+","+","+","+")))
+  testthat::expect_equal(
+    decompose_MatProd_new("A+B-((X+C)+D)-E", c("+"), flat = FALSE, return_op = TRUE)        %>% for_check_decomp_MP()
+    ,list(c("A", "B", "-((X+C)+D)", "-E"), c("+","+","+")))
+
+  
+  testthat::expect_equal(
+    decompose_MatProd_new("A+(B+C)+(X+D)", "+", target_X = "X")              %>% sapply(safe_deparse)
+    ,c("A", "(B+C)", "X","D"))
+  testthat::expect_equal(
+    decompose_MatProd_new("A+(B+C)+((X+D)+E)", "+", target_X = "X")          %>% sapply(safe_deparse)
+    ,c("A", "(B+C)", "X","D", "E"))
+  testthat::expect_equal(
+    decompose_MatProd_new("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")  %>% sapply(safe_deparse)
+    ,c("A", "(B+C)", "X", "D", "(E+F)"))
+  # 
+  # testthat::expect_equal(
+  #   decompose_MatProd_new("X-(A+B)", c("+", "-"), flat = TRUE, return_op=TRUE)      %>% for_check_decomp_MP()
+  #   ,list(c("X","-A", "-B"), c("+", "+")))
+  # testthat::expect_equal(
+  #   decompose_MatProd_new("X-(A+B)", c("+"), flat = TRUE, return_op=TRUE)                      %>% for_check_decomp_MP()
+  #   ,list(c("X","-A", "-B"), c("+", "+")))
+  
+  
   
 })
   

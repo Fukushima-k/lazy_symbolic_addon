@@ -67,6 +67,7 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
 #'
 #' decompose_MatProd("a+b-c+d+e", c("+"), return_op = TRUE)
+#' decompose_MatProd_new("a+b-c+d+e", c("+"), return_op = TRUE)
 #' decompose_MatProd("a+b-c+d+e", c("-", "+"), return_op = TRUE)
 #'
 #' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), return_op =  TRUE)
@@ -80,14 +81,14 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
 #' 
-#' drop_parens("A*B*((X*C)*D)") |> decompose_MatProd("*", flat = TRUE)
-#' 
 #' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE) 
 #' decompose_MatProd("A+B-((X+C)+D)-E", c("+"), flat = TRUE, return_op = TRUE) 
 #' decompose_MatProd("A+B-((X+C)+D)-E", c("+"), flat = FALSE, return_op = TRUE) 
 #'  
 #' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
 #' decompose_MatProd("A+(B+C)+((X+D)+E)", "+", target_X = "X")
+#' decompose_MatProd("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")
+#' 
 #' 
 #' decompose_MatProd("(A%*%X)%*%B", "%*%")
 #' decompose_MatProd("(A%*%X)%*%B", "%*%", flat = TRUE)
@@ -207,6 +208,83 @@ decompose_MatProd <- function(expr, op, return_op = FALSE, flat = FALSE, target_
     temp_current
   }
 } # end of decompose_MatProd
+
+
+#' 
+#' new decomposed_MatProd 
+#' 
+#' @examples
+#' # example code
+#' 
+#' 
+#' testthat::expect_equal(
+#' decompose_MatProd_new("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")  %>% #' sapply(safe_deparse),
+#' c("A", "(B+C)", "X", "D", "(E+F)"))
+#' 
+#' @export
+#' 
+
+
+decompose_MatProd_new <- function(expr, op = "+", return_op = FALSE, flat = FALSE, target_X = NULL) {
+  # 文字列から式に変換
+  if (is.character(expr)) {
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+    if (is.null(expr)) return(NULL)
+  }
+  
+  
+  if(identical(op, "-") | identical(op, c("-", "+") ) | identical(op, c("+", "-") )){
+    op = "+"
+  }
+  
+  # サポート対象外: 演算子が複数指定された場合
+  if (length(op) != 1) {
+    stop("現在は単一の演算子のみサポートされています。")
+  }
+  
+  # 内部で使う再帰関数（flat = FALSE 用）
+  decompose_recursive <- function(e) {
+    if (is.call(e) && as.character(e[[1]]) == op) {
+      # バイナリ演算子のみ対象（再帰）
+      left <- decompose_recursive(e[[2]])
+      right <- decompose_recursive(e[[3]])
+      list(terms = c(left$terms, right$terms),
+           ops = c(left$ops, op))
+    } else {
+      if(grepl(paste("\\b",target_X,"\\b", sep=""), safe_deparse(e))){
+        
+        
+        if(drop_parens(e) != e){
+          e <- drop_parens(e)
+          if(is.call(e) && op == "+"){
+            if(e[[1]] == "-"){
+            e <- linear_expand_expr(e, "-", most_out = "+")
+            e <- reduce_expr_sign(e, minus_as_sign = TRUE)
+            }
+          }
+          return(decompose_recursive(e))
+        }
+      }
+      list(terms = list(e), ops = character(0))
+    }
+  }
+  
+  if(op == "+") expr <- make_minus_sign(expr)
+  if(flat) expr <- drop_parens(expr, all = TRUE)
+  result <- decompose_recursive(expr)
+  
+  if (return_op) {
+    return(result)
+  } else {
+    return(result$terms)
+  }
+}
+
+
+
 
 
 #' compose MatProd
@@ -1341,8 +1419,6 @@ make_minus_sign <- function(expr){
   if(is.na(match(3, length_expr))) return(expr)
   
   info_minus <- info_minus_list[[match(3, length_expr)]]
-  
-  
   
   if(is.null(info_minus$parent)) return(expr)
   
