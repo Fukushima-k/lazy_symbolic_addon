@@ -129,7 +129,8 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
     }
     }
     if(debug){
-      print(glue::glue("{deparse(expr)} -> ")); cat("   ")
+      # print(glue::glue("{deparse(expr)} -> ")); cat("   ")
+      print(sprintf("%s -> ", deparse(expr))); cat("   ")
       print(result)
     }
     return(result)

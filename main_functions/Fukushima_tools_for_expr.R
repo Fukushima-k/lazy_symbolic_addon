@@ -991,8 +991,8 @@ assign_at_expr <- function(expr, path, value) {
     if (is.character(expr_temp)){
       assign(expr_name,
              tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
-               warning(glue::glue(
-                "{expr_name}への入力が有効な R 式ではありません"))
+               warning(sprintf(
+                "%sへの入力が有効な R 式ではありません", expr_name))
                return(NULL)
              })
       )
@@ -1054,8 +1054,8 @@ gsub_expr <- function(expr, object, replacement){
     if (is.character(expr_temp)){
       assign(expr_name,
              tryCatch(parse(text = expr_temp)[[1]], error = function(e) {
-               warning(glue::glue(
-                "{expr_name}への入力が有効な R 式ではありません"))
+               warning(sprintf(
+                 "%sへの入力が有効な R 式ではありません", expr_name))
                return(NULL)
              })
       )
@@ -1324,6 +1324,50 @@ diag_to_hp <- function(expr){
   return(expr)
 
 }# end of diag_to_hp
+
+
+#' wrap Hadamar product with parens for apparance
+#'
+#' @param expr an expression or a string
+#'
+#' @examples
+#' # example code
+#'
+#' res1 = "A%*%(B%.%C)" %>% drop_parens(all = TRUE)
+#' res1 |> show_ast()
+#' res1 |> wrap_hp() %>% show_ast()
+#' 
+#' res2 = "(B%.%C)%*%A" %>% drop_parens(all = TRUE)
+#' res2 |> show_ast()
+#' res2 |> wrap_hp() %>% show_ast()
+#'
+#' @export
+#'
+#'
+
+wrap_hp <- function(expr){
+  
+  wrap_hp_1 <- function(e, in_prod = FALSE){
+    if(is.call(e)){
+      op = as.character(e[[1]])
+      if(op == "%*%"){
+        e[[2]] <- wrap_hp_1(e[[2]], in_prod = TRUE)
+        e[[3]] <- wrap_hp_1(e[[3]], in_prod = TRUE)
+        return(e)
+      }
+      if(op %in% c("*", "%.%") && in_prod){
+        return(call("(", wrap_hp_1(e)))
+      }
+      e[[2]] <- wrap_hp_1(e[[2]])
+      if(length(e) == 3) e[[3]] <- wrap_hp_1(e[[3]])
+      return(e)
+    }
+    return(e)
+  }
+  
+  wrap_hp_1(expr)
+  
+}# end of wrap_hp
 
 
 

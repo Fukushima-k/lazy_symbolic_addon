@@ -209,7 +209,7 @@ X <- matrix(rnorm(3*3), 3)
 A <- 3*matrix(rnorm(3*3), 3)
 B <- 0.3*matrix(rnorm(3*3), 3)
 C <- -1*matrix(rnorm(3*3), 3)
-O<- 0
+O <- 0
 p <- sample(2:10, size = 1)
 I <- diag(3)
 

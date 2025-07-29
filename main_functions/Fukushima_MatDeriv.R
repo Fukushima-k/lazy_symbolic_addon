@@ -96,7 +96,7 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
     if(FreeQ(expr, X_)){
       # S1: no X
       if (trace_chain) cat("S1: tr(A)\n")
-      return("0")
+      return("O")
     }
 
 
@@ -131,7 +131,9 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       rhand_deriv <- mD0(expr[[3]], X_, trace_chain=.tc)
       lhand <- safe_deparse(expr[[2]])
       rhand <- safe_deparse(expr[[3]])
-      res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
+      # res_str <-  glue::glue("{lhand_deriv} * {rhand} + {rhand_deriv} * {lhand}")
+      res_str <-  sprintf("%s * %s + %s * %s", 
+                          lhand_deriv, rhand, rhand_deriv, lhand)
       expr <- parse(text = res_str)[[1]]
       if( debug ) show_ast(expr)
 
@@ -252,7 +254,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
         default_expr <-  safe_deparse(expr)
         if (trace_chain) cat("\nTechnic: tr(X) -> tr(X %*% I) because X is not `call`\n")
         expr[[2]] <- call("%*%", as.symbol("I"), expr[[2]])
-        if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+        # if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+        if(debug){cat(sprintf("%s -> %s", default_expr, deparse(expr)));cat("\n\n") }
 
         res <- mD0(expr, X_, trace_chain=.tc)
         return(res)
@@ -317,8 +320,6 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
               # S3.1 S3.2
               if (trace_chain) cat("S3.1 or 3.2: tr(A%*%inv(X))\n")
               inv_X <- invs[invs %in% mR]
-              # res_str <- glue::glue("-t({target}%*% {deparse(other_left)} %*%{target})")
-              # result <- parse(text = res_str)[[1]]
               res = paste0("-t(", inv_X, "%*%", oL, "%*%", inv_X,")")
             }
             else if (hp == 1) {
@@ -342,8 +343,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
             # depth=sys.nframe()
             depth = ""
-            GXplaceholder <- glue::glue("G_X{depth}")
-            FXplaceholder <- glue::glue("F_X{depth}")
+            GXplaceholder <- sprintf("G_X%s", depth)
+            FXplaceholder <- sprintf("F_X%s", depth)
 
             if( debug ) printm(safe_deparse(expr))
             if (debug) printm(oL, mR)
@@ -394,8 +395,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
           # depth=sys.nframe()
           depth = ""
-          mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
-          FXplaceholder <- glue::glue("FX{depth}")
+          mD_fFXplaceholder <- sprintf("mD_fFX%s", depth)
+          FXplaceholder     <- sprintf(    "FX%s", depth)
 
           fFX <- gsub_expr(expr, FX, replacement = FXplaceholder)
 
@@ -448,8 +449,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
           depth=sys.nframe()
           # depth = ""
-          mRc_placeholder <- glue::glue("mRc{depth}")
-          oLc_placeholder <- glue::glue("oLc{depth}")
+          mRc_placeholder <- sprintf("mRc%s", depth)
+          oLc_placeholder <- sprintf("oLc%s", depth)
 
           # Here, mR is either X_, inv(X_) or Hadamar Prod
           # and other_left contains X_, therefor, both factors contain X_
@@ -495,7 +496,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
         res <- mD0(expr, X_, trace_chain=.tc)
         if(!grepl("mD0", res)){
           if (trace_chain) cat("\nTechnic: add I %*% \n")
-          if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+          # if(debug){cat(glue::glue("{default_expr} -> {deparse(expr)}"));cat("\n\n") }
+          if(debug){cat(sprintf("%s -> %s", default_expr, deparse(expr)));cat("\n\n") }
           res <- safe_deparse(reduce_expr_I(res))
 
           return(res)
@@ -514,8 +516,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
       if (as.character(expr[[1]]) == "det"){
         if(expr[[2]] == expr_var){
           if (trace_chain) cat("S4 : mD0(det(X), X)\n")
-          res_str <- glue::glue("det({X_})*inv(t({X_}))")
-          # result <- parse(text = res_str)[[1]]
+          # res_str <- glue::glue("det({X_})*inv(t({X_}))")
+          res_str <- sprintf("det(%s)*inv(t(%s))", X_, X_)
           return(res_str)
         }
 
@@ -529,8 +531,8 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
         # depth=sys.nframe()
         depth = ""
-        mD_fFXplaceholder <- glue::glue("mD_fFX{depth}")
-        FXplaceholder <- glue::glue("FX{depth}")
+        mD_fFXplaceholder <- sprintf("mD_fFX%s", depth)
+        FXplaceholder <-     sprintf(    "FX%s", depth)
 
         fFX <- gsub_expr(expr, FX, replacement = FXplaceholder)
 
