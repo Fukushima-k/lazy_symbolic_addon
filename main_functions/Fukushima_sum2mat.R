@@ -199,8 +199,8 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
         x[[i]]
       })
     })
-    
-    
+
+
     if(is.call(sublist_list[[1]][[1]])){
       return(expr)
     }
@@ -220,7 +220,7 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       if((length(sublist_list[[1]]) !=2) | (length(sublist_list[[2]]) != 2)){
         return(expr)
       }
-      
+
       # 要素積、要素和(operator_mat定義済み)
       Mat_symbol_list_mod <- Mat_symbol_list |> lapply(function(x){
         # 余計なかっこ()の削除
@@ -265,20 +265,20 @@ sum2mat <- function(expr_str, deparse_result = TRUE, print=1 ){
       # if(all(sapply(sublist_list, length) == 2)){
       # sublist_list; Mat_symbol_list; sum_var; operator
       sub_logical_list <- lapply(sublist_list, function(sublist)as.character(sublist)==sum_var)
-      
-      
+
+
       if(!all(sapply(sub_logical_list, any))){
       # sum_varが両方の行列に含まれないばあい。
         return(expr)
       }
-      
+
       # 右行列と左行列で処理を反転させる
       logic_flip <- list(function(x)x,function(x)!x)
       Mat_symbol_list_mod <- sublist_new <- res <- list()
       for(i in 1:2){
         sublist_new[[i]] <-  sublist_list[[i]][!sub_logical_list[[i]]]
         Mat_symbol_list_mod[[i]] <- Mat_symbol_list[[i]]
-        
+
         if(length(sublist_list[[i]]) == 2){
           if(logic_flip[[i]](identical(sub_logical_list[[i]], c(TRUE, FALSE)))){
             Mat_symbol_list_mod[[i]] <- call("t", Mat_symbol_list[[i]])
