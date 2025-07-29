@@ -73,7 +73,7 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
 #'
 #' decompose_MatProd("a+b-c+d+e", c("+"), return_op = TRUE)
-#' decompose_MatProd_new("a+b-c+d+e", c("+"), return_op = TRUE)
+#' decompose_MatProd("a+b-c+d+e", c("+"), return_op = TRUE)
 #' decompose_MatProd("a+b-c+d+e", c("-", "+"), return_op = TRUE)
 #'
 #' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), return_op =  TRUE)
@@ -143,7 +143,8 @@ decompose_MatProd <- function(expr, op, return_op = FALSE
   }
 
   if(identical(op, "+")){
-    expr <- make_minus_sign(expr)
+    # expr <- make_minus_sign(expr)
+    expr <- reduce_sign_expr(expr, minus_as_sign = TRUE)
   }
 
   ops <- NULL
@@ -235,19 +236,21 @@ decompose_MatProd <- function(expr, op, return_op = FALSE
 #' 
 #' new decomposed_MatProd 
 #' 
+#' 元のdecomposed_MatProdはdeprecate予定
+#' 
 #' @examples
 #' # example code
 #' 
 #' 
 #' testthat::expect_equal(
-#' decompose_MatProd_new("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")  %>% #' sapply(safe_deparse),
+#' decompose_MatProd("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")  %>% #' sapply(safe_deparse),
 #' c("A", "(B+C)", "X", "D", "(E+F)"))
 #' 
 #' @export
 #' 
 
 
-decompose_MatProd_new <- function(expr, op = "+", return_op = FALSE, flat = FALSE, target_X = NULL) {
+decompose_MatProd <- function(expr, op = "+", return_op = FALSE, flat = FALSE, target_X = NULL) {
   # 文字列から式に変換
   if (is.character(expr)) {
     expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
@@ -585,6 +588,8 @@ drop_parens <- function(expr, all = FALSE, in_biop = FALSE){
 #'
 #' This function is used to move unary operators (e.g., `inv`, `t`, `-`) to the outermost position in an expression, as much as possible.
 #' It is useful for handling nested unary operators or when you want to prioritize moving specific operators outward.
+#' 
+#' 元のunary_reorder_exprはdeprecate予定
 #'
 #' @param expr input expression or string
 #' @param most_out The unary operator that should be moved to the outermost position.
@@ -681,11 +686,28 @@ unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c(
 
 
 
+unary_reorder_expr <- function(expr, most_out, add_exch_op, exchangable_ops = c("inv", "(", "t","-")){
+  if(is.character(expr))
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  if(!missing(add_exch_op)) exchangable_ops <- c(exchangable_ops, add_exch_op)
+  
+  linear_expand_expr(expr, exchangable_ops = exchangable_ops, most_out = most_out, type = "unary")
+  # do.call(linear_expand_expr, c(list(expr = expr, most_out = most_out, type = "unary"), exchangable_ops))
+  
+} # end of unary_reorder_expr_new
+
 
 
 
 #' Remove multiple consecutive signs from an expression
 #'
+#' 
+#' deprecated 予定 
+#' reduce_expr_sign(expr) ==> reduce_sign_expr(expr)
 #'
 #' @param expr an expression
 #' @param minus ????
@@ -780,8 +802,9 @@ reduce_expr_sign <- function(expr, minus_as_sign = FALSE){
   expr <- drop_sign_plus(expr)
   expr <- cancel_double_expr(expr, double_op = "-")
   expr <- sign_exchange(expr)
-  if(minus_as_sign) expr <- make_minus_sign(expr)
-
+  if(minus_as_sign) 
+    expr <- reduce_sign_expr(expr, minus_as_sign = TRUE)
+    # expr <- make_minus_sign(expr)
   return(expr)
 
 } # end of reduce_expr_sign
@@ -1414,6 +1437,8 @@ diag_to_hp <- function(expr){
 
 #' Add + sign before unary - sign
 #'
+#' deprecated 予定 
+#' make_minus_sign(expr) ==> reduce_sign_expr(expr, minus_as_sign = TRUE)
 #'
 #' @param expr an expression or a string
 #'
@@ -1499,8 +1524,9 @@ make_minus_sign <- function(expr){
 #' @export
 #'
 
-linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
+linear_expand_expr <- function(expr, ..., exchangable_ops = c(""), most_out =c("+","-"), type = c("binary", "unary", "both")){
 
+  type = match.arg(type)
   linear_expand_expr_core <- function(expr, ..., most_out ){
 
   fn_names <- as.character(list(...))
@@ -1510,16 +1536,20 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
       return(NULL)
     })
 
-  exchangable_ops <- fn_names
+  exchangable_ops <- c(exchangable_ops, fn_names)
 
   expr <- drop_parens(expr, all = TRUE)
   info_sum_list <- grep_expr(expr, most_out)
 
   if(length(info_sum_list)==0) return(expr)
 
-  # choose the first **binary** op.
+  # choose op types.
   length_expr <-sapply(info_sum_list, function(x){length(x$parent)})
-  info_sum_list <- info_sum_list[length_expr==3]
+  if(type == "binary"){
+    info_sum_list <- info_sum_list[length_expr==3]
+  }else if(type == "unary"){
+    info_sum_list <- info_sum_list[length_expr==2]
+  }
 
   for(i in rev(seq_along(info_sum_list))){
     info_sum <- info_sum_list[[i]]
@@ -1554,7 +1584,8 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
               target <- assign_at_expr(expr, path_to_target)
 
               parent[[2]] <- assign_at_expr(target, 2, parent[[2]])
-              parent[[3]] <- assign_at_expr(target, 2, parent[[3]])
+              if(length(parent)==3) 
+                parent[[3]] <- assign_at_expr(target, 2, parent[[3]])
 
               expr <- assign_at_expr(expr, path_to_target, parent)
               expr <- linear_expand_expr_core(expr, ..., most_out = most_out)
@@ -1569,7 +1600,8 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
               target <- assign_at_expr(expr, path_to_target)
 
               parent[[2]] <- assign_at_expr(target, path_to_parent[depth], parent[[2]])
-              parent[[3]] <- assign_at_expr(target, path_to_parent[depth], parent[[3]])
+              if(length(parent)==3) 
+                parent[[3]] <- assign_at_expr(target, path_to_parent[depth], parent[[3]])
 
               expr <- assign_at_expr(expr, path_to_target, parent)
               expr <- linear_expand_expr_core(expr, ..., most_out = most_out)
@@ -1594,6 +1626,9 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
 }　# end of linear_expand_expr
 
 
+
+# 0730実装 ========================
+
 #' new sign function 
 #'  
 #'  まず、++や--などを省略する。
@@ -1604,7 +1639,7 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
 #'  @examples
 #'  modify_math_operators()
 #'  
-#'  Basic pattern
+#'  # Basic pattern
 #'  c("A+B",  "A-B",  "-B",  "+B",  
 #'  "A+(B+C)",  "A+(B-C)",  "A-(B+C)",  "A-(B-C)",  
 #'  "+(B+C)",  "+(B-C)",  "-(B+C)",  "-(B-C)",  
@@ -1742,9 +1777,6 @@ reduce_sign_expr <-  function(expr, minus_as_sign = FALSE, expand = FALSE){
 
  
 
-
-# 0730実装 ========================
-
 #' wrap Hadamar product with parens for apparance
 #'
 #' @param expr an expression or a string
@@ -1759,23 +1791,46 @@ reduce_sign_expr <-  function(expr, minus_as_sign = FALSE, expand = FALSE){
 #' res2 = "(B%.%C)%*%A" %>% drop_parens(all = TRUE)
 #' res2 |> show_ast()
 #' res2 |> wrap_hp() %>% show_ast()
+#' 
+#' res = easy_parse("C*A*(X %*% B)") %>% drop_parens(all = TRUE)
+#' res |> show_ast()
+#' res |> wrap_hp() %>% show_ast()
+#'
+#' expr =
+#' c("A%*%(B%.%C)", "(B%.%C)%*%A",
+#'   "A%*%(B * C)", "(B * C)%*%A",
+#'   "A * (B%*%C)", "(B%*%C) * A",
+#'   "A * (B%.%C)", "(B%.%C)%*%A",
+#'   "A%.%(B%*%C)", "(B%*%C)%.%A",
+#'   "A%.%(B * C)", "(B * C)%.%A",
+#'   "A%.%(B%.%C)", "(B%.%C)%.%A",
+#'   "A%*%(B%*%C)", "(B%*%C)%*%A",
+#'   "A * (B * C)", "(B * C) * A",
+#'   "A +  B * C"
+#' ) %>% sapply(drop_parens, all = TRUE)
+#' expr %>% sapply(function(x)safe_deparse(wrap_hp(x)))
 #'
 #' @export
 #'
 #'
 
 wrap_hp <- function(expr){
-  
-  wrap_hp_1 <- function(e, in_prod = FALSE){
+  ops_family = list("%*%", 
+                    c("*", "%.%"))
+
+  wrap_hp_1 <- function(e, parent_op = NULL){
     if(is.call(e)){
       op = as.character(e[[1]])
-      if(op == "%*%"){
-        e[[2]] <- wrap_hp_1(e[[2]], in_prod = TRUE)
-        e[[3]] <- wrap_hp_1(e[[3]], in_prod = TRUE)
+      op_num = which(sapply(ops_family, function(x)op %in% x))
+      if(is.null(parent_op)){
+        e[[2]] <- wrap_hp_1(e[[2]], parent_op = op_num)
+        e[[3]] <- wrap_hp_1(e[[3]], parent_op = op_num)
         return(e)
       }
-      if(op %in% c("*", "%.%") && in_prod){
-        return(call("(", wrap_hp_1(e)))
+      if(length(parent_op) != 0){
+        if(op_num != parent_op){
+          return(call("(", wrap_hp_1(e)))
+        }
       }
       e[[2]] <- wrap_hp_1(e[[2]])
       if(length(e) == 3) e[[3]] <- wrap_hp_1(e[[3]])
@@ -1783,7 +1838,6 @@ wrap_hp <- function(expr){
     }
     return(e)
   }
-  
   wrap_hp_1(expr)
   
 }# end of wrap_hp
@@ -1799,14 +1853,26 @@ wrap_hp <- function(expr){
 #' expand_expr("(A - B) %*% C")
 #' expand_expr("((A - B) %*% C)%*%(A-C)")
 #' expand_expr("(-A - B - F) %*% C")
-#' expand_expr("(-A-B-F) %*% (A-B+D)")
+#' expand_expr("(-A-B-F) %*% (A-B+D)", remove_paren = TRUE)
+#' expand_expr("(-A-B-F) %*% (A-B+D)", remove_paren = TRUE, KF = TRUE) %>% show_ast
 #' 
 #' @export
 #'
 #'
 
-expand_expr <- function(expr){
+expand_expr <- function(expr, remove_paren = TRUE, KF = FALSE){
   expr <- linear_expand_expr(expr, "%*%")
+  if(remove_paren){
+    if(KF){
+      terms = decompose_MatProd(expr, op = "+", flat = TRUE)    
+      expr = compose_MatProd(terms, "+")
+      expr = reduce_sign_expr(expr, minus_as_sign = FALSE)
+    }else{
+      terms = FindTerms(expr, remove_paren = TRUE) %>% apply(1, paste0, collapse = "")
+      expr = paste0(terms, collapse ="")
+      expr = reduce_sign_expr(expr, minus_as_sign = FALSE)
+    }
+  }
   return(expr)
 }# end of wrap_hp
 
