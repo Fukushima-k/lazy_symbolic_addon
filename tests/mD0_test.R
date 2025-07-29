@@ -836,7 +836,31 @@ test_that(" 0719", {
 test_that("tools for expr", {
   expect_equal(reduce_expr_sign("---A")            , easy_parse("-A"))
   expect_equal(reduce_expr_sign("+++A")            , easy_parse(" A"))
+  
+  expect_equal(expand_expr("(A+B)%*%C"))
 
+  
+  linear_expand_expr("(A+B)%*%C", "%*%")
   
 })
   
+
+
+expand_expr("(-A - B - F) %*% C")
+
+linear_expand_expr("(A - B) %*% C", "%*%")
+linear_expand_expr("(-A - B + FD) %*% C", "%*%")
+
+expect_equal(linear_expand_expr("(A + B) %*% C", "%*%"), easy_parse("A %*% C + B %*% C"))
+expect_equal(linear_expand_expr("A %*% (B + C)", "%*%"), easy_parse("A %*% B + A %*% C"))
+expect_equal(linear_expand_expr("(A + B + C) %*% D", "%*%"), easy_parse("A %*% D + B %*% D + C %*% D"))
+expect_equal(linear_expand_expr("D %*% (A + B + C)", "%*%"), easy_parse("D %*% A + D %*% B + D %*% C"))
+expect_equal(linear_expand_expr("A %*% B", "%*%"), easy_parse("A %*% B"))
+expect_equal(linear_expand_expr("(a + b) * c", "*"), easy_parse("a * c + b * c"))
+expect_equal(linear_expand_expr("c * (a + b)", "*"), easy_parse("c * a + c * b" ))
+
+
+
+
+
+

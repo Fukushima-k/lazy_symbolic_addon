@@ -1326,51 +1326,6 @@ diag_to_hp <- function(expr){
 }# end of diag_to_hp
 
 
-#' wrap Hadamar product with parens for apparance
-#'
-#' @param expr an expression or a string
-#'
-#' @examples
-#' # example code
-#'
-#' res1 = "A%*%(B%.%C)" %>% drop_parens(all = TRUE)
-#' res1 |> show_ast()
-#' res1 |> wrap_hp() %>% show_ast()
-#' 
-#' res2 = "(B%.%C)%*%A" %>% drop_parens(all = TRUE)
-#' res2 |> show_ast()
-#' res2 |> wrap_hp() %>% show_ast()
-#'
-#' @export
-#'
-#'
-
-wrap_hp <- function(expr){
-  
-  wrap_hp_1 <- function(e, in_prod = FALSE){
-    if(is.call(e)){
-      op = as.character(e[[1]])
-      if(op == "%*%"){
-        e[[2]] <- wrap_hp_1(e[[2]], in_prod = TRUE)
-        e[[3]] <- wrap_hp_1(e[[3]], in_prod = TRUE)
-        return(e)
-      }
-      if(op %in% c("*", "%.%") && in_prod){
-        return(call("(", wrap_hp_1(e)))
-      }
-      e[[2]] <- wrap_hp_1(e[[2]])
-      if(length(e) == 3) e[[3]] <- wrap_hp_1(e[[3]])
-      return(e)
-    }
-    return(e)
-  }
-  
-  wrap_hp_1(expr)
-  
-}# end of wrap_hp
-
-
-
 #' Add + sign before unary - sign
 #'
 #'
@@ -1557,5 +1512,72 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
 }　# end of linear_expand_expr
 
 
+
+# 0730実装 ========================
+
+#' wrap Hadamar product with parens for apparance
+#'
+#' @param expr an expression or a string
+#'
+#' @examples
+#' # example code
+#'
+#' res1 = "A%*%(B%.%C)" %>% drop_parens(all = TRUE)
+#' res1 |> show_ast()
+#' res1 |> wrap_hp() %>% show_ast()
+#' 
+#' res2 = "(B%.%C)%*%A" %>% drop_parens(all = TRUE)
+#' res2 |> show_ast()
+#' res2 |> wrap_hp() %>% show_ast()
+#'
+#' @export
+#'
+#'
+
+wrap_hp <- function(expr){
+  
+  wrap_hp_1 <- function(e, in_prod = FALSE){
+    if(is.call(e)){
+      op = as.character(e[[1]])
+      if(op == "%*%"){
+        e[[2]] <- wrap_hp_1(e[[2]], in_prod = TRUE)
+        e[[3]] <- wrap_hp_1(e[[3]], in_prod = TRUE)
+        return(e)
+      }
+      if(op %in% c("*", "%.%") && in_prod){
+        return(call("(", wrap_hp_1(e)))
+      }
+      e[[2]] <- wrap_hp_1(e[[2]])
+      if(length(e) == 3) e[[3]] <- wrap_hp_1(e[[3]])
+      return(e)
+    }
+    return(e)
+  }
+  
+  wrap_hp_1(expr)
+  
+}# end of wrap_hp
+
+
+#' expand for expr
+#'
+#' @param expr an expression or a string
+#'
+#' @examples
+#' # example code
+#'
+#' expand_expr("(A - B) %*% C")
+#' expand_expr("((A - B) %*% C)%*%(A-C)")
+#' expand_expr("(-A - B - F) %*% C")
+#' expand_expr("(-A-B-F) %*% (A-B+D)")
+#' 
+#' @export
+#'
+#'
+
+expand_expr <- function(expr){
+  expr <- linear_expand_expr(expr, "%*%")
+  return(expr)
+}# end of wrap_hp
 
 
