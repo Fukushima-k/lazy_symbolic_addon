@@ -73,6 +73,7 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A%*%B%*%C%*%D%*%E", "*")
 #'
 #' decompose_MatProd("a+b-c+d+e", c("+"), return_op = TRUE)
+#' decompose_MatProd_new("a+b-c+d+e", c("+"), return_op = TRUE)
 #' decompose_MatProd("a+b-c+d+e", c("-", "+"), return_op = TRUE)
 #'
 #' decompose_MatProd("a+b-(c+d)+e", c("-", "+"), return_op =  TRUE)
@@ -85,6 +86,7 @@ safe_deparse <- function(expr){
 #' decompose_MatProd("A%*%B%*%((X%*%C)%*%D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X%*%C)*D)", "%*%", flat = TRUE)
 #' decompose_MatProd("A*B*((X*C)*D)", "*", flat = TRUE)
+#' # <<<<<<< HEAD
 #'
 #' drop_parens("A*B*((X*C)*D)") |> decompose_MatProd("*", flat = TRUE)
 #'
@@ -94,7 +96,17 @@ safe_deparse <- function(expr){
 #'
 #' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
 #' decompose_MatProd("A+(B+C)+((X+D)+E)", "+", target_X = "X")
-#'
+#' # =======
+#' 
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+", "-"), flat = TRUE, return_op = TRUE) 
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+"), flat = TRUE, return_op = TRUE) 
+#' decompose_MatProd("A+B-((X+C)+D)-E", c("+"), flat = FALSE, return_op = TRUE) 
+#'  
+#' decompose_MatProd("A+(B+C)+(X+D)", "+", target_X = "X")
+#' decompose_MatProd("A+(B+C)+((X+D)+E)", "+", target_X = "X")
+#' decompose_MatProd("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")
+#' 
+#' # >>>>>>> Fukushima
 #' decompose_MatProd("(A%*%X)%*%B", "%*%")
 #' decompose_MatProd("(A%*%X)%*%B", "%*%", flat = TRUE)
 #' decompose_MatProd("A%*%((X%*%B))", "%*%", flat = TRUE)
@@ -181,8 +193,12 @@ decompose_MatProd <- function(expr, op, return_op = FALSE
     for(i in i_range){
       temp_current_i <- drop_parens(temp_current[[i]])
       if(op == "+"){
-        expr <- linear_expand_expr(temp_current_i, "-", most_out = "+")
-        temp_current_i <- reduce_expr_sign(expr, minus_as_sign = TRUE)
+        temp_current_i <- reduce_sign_expr(temp_current_i, minus_as_sign = TRUE, expand = TRUE)
+        
+        # expr <- linear_expand_expr(temp_current_i, "-", most_out = "+")
+        # temp_current_i <- reduce_expr_sign(expr, minus_as_sign = TRUE)
+        # Print(safe_deparse(expr_new), safe_deparse(temp_current_i))
+        # if(!identical(expr_new,temp_current_i)) stop("エラーだよ。")
       }
 
       if(is.call(temp_current_i)){
@@ -215,6 +231,76 @@ decompose_MatProd <- function(expr, op, return_op = FALSE
   }
 } # end of decompose_MatProd
 
+
+#' 
+#' new decomposed_MatProd 
+#' 
+#' @examples
+#' # example code
+#' 
+#' 
+#' testthat::expect_equal(
+#' decompose_MatProd_new("A+(B+C)+((X+D)+(E+F))", "+", target_X = "X")  %>% #' sapply(safe_deparse),
+#' c("A", "(B+C)", "X", "D", "(E+F)"))
+#' 
+#' @export
+#' 
+
+
+decompose_MatProd_new <- function(expr, op = "+", return_op = FALSE, flat = FALSE, target_X = NULL) {
+  # 文字列から式に変換
+  if (is.character(expr)) {
+    expr <- tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+    if (is.null(expr)) return(NULL)
+  }
+  
+  
+  if(identical(op, "-") | identical(op, c("-", "+") ) | identical(op, c("+", "-") )){
+    op = "+"
+  }
+  
+  # サポート対象外: 演算子が複数指定された場合
+  if (length(op) != 1) {
+    stop("現在は単一の演算子のみサポートされています。")
+  }
+  
+  # 内部で使う再帰関数（flat = FALSE 用）
+  decompose_recursive <- function(e) {
+    if (is.call(e) && as.character(e[[1]]) == op) {
+      left <- decompose_recursive(e[[2]])
+      right <- decompose_recursive(e[[3]])
+      list(terms = c(left$terms, right$terms),
+           ops = c(left$ops, op, right$ops))
+    } else {
+      if((!is.null(target_X)  && grepl(paste("\\b",target_X,"\\b", sep=""), safe_deparse(e))) || 
+         flat){
+        
+        e <- drop_parens(e)
+        
+        if(is.call(e)){
+          if(op == "+") e = reduce_sign_expr(e, minus_as_sign = TRUE, expand = TRUE)
+          if(as.character(e[[1]]) == op){
+              return(decompose_recursive(e))
+          }
+        } 
+      }
+      list(terms = list(e), ops = character(0))
+    }
+  }
+  
+  if(op == "+") expr <- reduce_sign_expr(expr, minus_as_sign = TRUE)
+  if(flat) expr <- drop_parens(expr, all = TRUE)
+  result <- decompose_recursive(expr)
+  
+  if (return_op) {
+    return(result)
+  } else {
+    return(result$terms)
+  }
+}
 
 
 #' compose MatProd
@@ -298,7 +384,7 @@ compose_MatProd <- function(terms, op){
 recompose_MatProd <- function(expr, op){
   terms <- decompose_MatProd(expr, op, return_op = TRUE, flat = TRUE)
   expr <- compose_MatProd(terms)
-  expr <- reduce_expr_sign(expr)
+  expr <- reduce_sign_expr(expr)
   return(expr)
 }
 
@@ -1370,9 +1456,7 @@ make_minus_sign <- function(expr){
   if(is.na(match(3, length_expr))) return(expr)
 
   info_minus <- info_minus_list[[match(3, length_expr)]]
-
-
-
+  
   if(is.null(info_minus$parent)) return(expr)
 
   path <- info_minus$path[-length(info_minus$path)]
@@ -1426,8 +1510,6 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
       return(NULL)
     })
 
-  # most_out <- c("+", "-")
-  # most_out <- c("+")
   exchangable_ops <- fn_names
 
   expr <- drop_parens(expr, all = TRUE)
@@ -1511,6 +1593,154 @@ linear_expand_expr <- function(expr, ... , most_out =c("+","-")){
 
 }　# end of linear_expand_expr
 
+
+#' new sign function 
+#'  
+#'  まず、++や--などを省略する。
+#'  minus_as_sign = TRUEなら、 A - B -> A + -Bにする。 make_minus_sign()代わり。
+#'  expand = TRUEなら、 A - (B -C ) -> A -B + Cにする。
+#'
+#'  
+#'  @examples
+#'  modify_math_operators()
+#'  
+#'  Basic pattern
+#'  c("A+B",  "A-B",  "-B",  "+B",  
+#'  "A+(B+C)",  "A+(B-C)",  "A-(B+C)",  "A-(B-C)",  
+#'  "+(B+C)",  "+(B-C)",  "-(B+C)",  "-(B-C)",  
+#'  "++C",  "+-C",  "-+C",  "--C",  
+#'  "A++C",  "A+-C",  "A-+C",  "A--C") |>
+#'  sapply(function(expr){  
+#'     list(
+#'     nSE          = reduce_sign_expr(expr),
+#'     nSE_MS       = reduce_sign_expr(expr, minus_as_sign=TRUE),
+#'     nSE_EX       = reduce_sign_expr(expr, expand=TRUE),
+#'     nSE_MS_EX    = reduce_sign_expr(expr, minus_as_sign=TRUE, expand=TRUE),
+#'     rES          = reduce_expr_sign(expr),
+#'     mMS          = make_minus_sign(expr)
+#'     ) |> sapply(safe_deparse)
+#'  }) |> t()
+#'  
+#'  
+#'  
+#'  
+#'  
+#' c("A+-++-+-+--C", "A+(B+C)+(D-E)",    "A-(B-C-(D--E))", "A%*%(B-C)",
+#' 
+#' "t(A-(B-C))-t(-A-C+B)"
+#' 
+#' )  |>
+#'  sapply(function(expr){  
+#'     list(
+#'     nSE          = reduce_sign_expr(expr),
+#'     nSE_MS       = reduce_sign_expr(expr, minus_as_sign=TRUE),
+#'     nSE_EX       = reduce_sign_expr(expr, expand=TRUE),
+#'     nSE_MS_EX    = reduce_sign_expr(expr, minus_as_sign=TRUE, expand=TRUE),
+#'     rES          = reduce_expr_sign(expr),
+#'     mMS          = make_minus_sign(expr)
+#'     ) |> sapply(safe_deparse)
+#'  }) |> t()
+#'  
+#'  @export
+#'  
+
+
+reduce_sign_expr <-  function(expr, minus_as_sign = FALSE, expand = FALSE){
+  if(is.character(expr))
+    expr <- e <-  tryCatch(parse(text = expr)[[1]], error = function(e) {
+      warning("入力が有効な R 式ではありません")
+      return(NULL)
+    })
+  
+  process_sign <- function(e){
+    if(is.call(e)){
+      
+      if(e[[1]] == "+" & length(e)==2){
+        return(process_sign(e[[2]]))
+      } 
+      if(e[[1]] == "+" & length(e)==3){
+        
+        if(!minus_as_sign){
+          right_e <- e[[3]]
+          if(is.call(right_e)){
+            if(right_e[[1]] == "-" & length(right_e)==2){
+              e[[1]] <- as.symbol("-")
+              e[[3]] <- right_e[[2]]
+              e <- process_sign(e)
+              return(e)
+            }
+          }
+        } 
+        
+        e[[2]] <- process_sign(e[[2]])
+        e[[3]] <- process_sign(e[[3]])
+        return(e)
+      } 
+      if(e[[1]] == "-" & length(e)==2){
+        in_e <- e[[2]]
+        if(is.call(in_e)){
+          if(in_e[[1]] == "-" & length(in_e)==2){
+            return(process_sign(in_e[[2]]))
+          }
+          if(expand){
+            if(as.character(in_e[[1]]) %in% c("+", "-") && length(in_e)==3){
+              in_e[[2]] <- call("-", in_e[[2]])
+              in_e[[3]] <- call("-", in_e[[3]])
+              return(process_sign(in_e))
+            }
+          }
+          
+        }
+        e[[2]] <- process_sign(in_e)
+        return(e)
+      } 
+      if(e[[1]] == "-" & length(e)==3){
+        
+        if(minus_as_sign){
+            e[[1]] <- as.symbol("+")
+            e[[3]] <- call("-" , e[[3]])
+            e <- process_sign(e)
+            return(e)
+        } 
+        
+        right_e <- e[[3]]
+        if(is.call(right_e)){
+          if(right_e[[1]] == "-" & length(right_e)==2){
+            e[[1]] <- as.symbol("+")
+            e[[3]] <- right_e[[2]]
+          }
+          if(as.character(right_e[[1]]) %in% c("+", "-") && length(right_e)==3){
+            right_e[[2]] <- call("-", right_e[[2]])
+            right_e[[3]] <- call("-", right_e[[3]])
+            e[[3]] <- right_e
+            e[[1]] <- as.symbol("+")
+            return(process_sign(e))
+          }
+        }
+        
+        e[[2]] <- process_sign(e[[2]])
+        e[[3]] <- process_sign(e[[3]])
+        
+        return(e)
+      }
+      
+      e[[2]] <- process_sign(e[[2]])
+      if(length(e) == 3) e[[3]] <- process_sign(e[[3]])
+      return(e)
+    }
+    return(e)
+  }
+  
+  # reduce only sign
+  if(expand) expr <- drop_parens(expr, all=TRUE)
+  expr <- process_sign(expr)
+  # expr <- process_sign(expr)
+  # expr <- process_sign(expr)
+  
+  return(expr)
+} # end of reduce_expr_sign
+
+ 
 
 
 # 0730実装 ========================

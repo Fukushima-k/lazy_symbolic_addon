@@ -367,8 +367,13 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
             res_temp <- gsub_expr(res_temp, GXplaceholder, GX)
             res_temp <- gsub_expr(res_temp, FXplaceholder, FX)
-
-            res <- reduce_expr_sign(res_temp)
+# <<<<<<< HEAD
+# 
+#             res <- reduce_expr_sign(res_temp)
+# =======
+            
+            res <- reduce_sign_expr(res_temp)
+# >>>>>>> Fukushima
             return(safe_deparse(res))
           }
           # Here, mR is not X_ nor inv(X_) but contains X_.
@@ -481,8 +486,13 @@ mD0 <- function( expr, X_="X", trace_chain=1, debug=0){
 
           res = call("+", res11, res22)
           # res = gsub("+-", "-", res, fixed = TRUE)
-          res = reduce_expr_sign(res)
-
+# <<<<<<< HEAD
+#           res = reduce_expr_sign(res)
+# 
+# =======
+          res = reduce_sign_expr(res)
+          
+# >>>>>>> Fukushima
           if (debug) printm("final result", "/", res)
           return(safe_deparse(res))
 
